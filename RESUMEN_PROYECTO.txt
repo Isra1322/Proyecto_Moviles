@@ -1,0 +1,577 @@
+================================================================================
+                    RESUMEN TÉCNICO Y ARQUITECTÓNICO DEL PROYECTO
+                  SISTEMA E-COMMERCE MÓVIL (ODOO + .NET + FLUTTER)
+================================================================================
+Fecha de generación: Noviembre 2026
+Estado del proyecto: Funcional / En fase de integración y consolidación
+Repositorio: API_WEB-main
+
+--------------------------------------------------------------------------------
+TABLA DE CONTENIDOS
+--------------------------------------------------------------------------------
+1. VISIÓN GENERAL Y OBJETIVO
+2. ARQUITECTURA DEL SISTEMA Y FLUJO DE DATOS
+3. DETALLE DEL BACKEND (.NET WEB API)
+4. DETALLE DEL FRONTEND (FLUTTER)
+5. CONFIGURACIÓN DEL ENTORNO LOCAL Y DEPENDENCIAS EXTERNAS
+6. ESTADO ACTUAL, PENDIENTES Y HOJA DE RUTA (ROADMAP)
+
+
+================================================================================
+1. VISIÓN GENERAL Y OBJETIVO
+================================================================================
+
+1.1 Propósito General del Sistema
+El proyecto consiste en una plataforma integral de E-Commerce para dispositivos 
+móviles que conecta una aplicación cliente moderna (Flutter) con el sistema de 
+gestión empresarial Odoo ERP (Community Edition) mediante una API intermediaria 
+de alto rendimiento desarrollada en ASP.NET Core Web API (.NET 10).
+
+El objetivo principal es permitir a los clientes:
+  - Autenticarse de forma segura utilizando sus credenciales registradas en Odoo.
+  - Navegar por el catálogo de productos y categorías comerciales en tiempo real.
+  - Consultar información detallada, precios, códigos de barra y existencias.
+  - Gestionar un carrito de compras interactivo con persistencia local.
+  - Generar pedidos de venta directos (Sale Orders) registrados en Odoo ERP.
+  - Consultar el historial de compras y el estado de sus pedidos en cualquier momento.
+
+1.2 Stack Tecnológico Completo
+  - Capa Móvil (Frontend):
+    * Framework: Flutter 3.47.9 (Canal Stable)
+    * Lenguaje: Dart 3.13.7 (SDK constraint ^3.13.4)
+    * Diseño: Material Design 3 (Material 3 habilitado)
+    * Patrón de diseño: Clean Architecture + Presentation/Application/Domain/Infrastructure
+    * Gestor de Estado: Provider 6.1.1 (ChangeNotifierProvider / MultiProvider)
+    * Almacenamiento Local: SharedPreferences 2.2.2
+    * Cliente HTTP: http 1.2.0
+
+  - Capa Intermediaria / Orquestación (Backend):
+    * Framework: ASP.NET Core Web API
+    * Plataforma / Runtime: .NET 10.0 (.NET SDK 10.0.403, TFM net10.0)
+    * Arquitectura: Clean Architecture (Onion / Hexagonal) estructurada en 4 capas
+    * Patrón de Casos de Uso: Command/Query Separation mediante Use Cases dedicados
+    * Documentación / API Explorer: OpenAPI / Swagger (Swashbuckle.AspNetCore 10.3.1)
+    * Pruebas Unitarias: xUnit 2.9.3, FluentAssertions 8.11.0, Moq 4.21.0
+
+  - Capa ERP y Base de Datos (Motor Transaccional):
+    * ERP: Odoo Community Edition (v16 / v17 / v18)
+    * Protocolo de integración: Odoo External API vía JSON-RPC 2.0 / HTTP POST (/jsonrpc)
+    * Base de Datos ERP: PostgreSQL (Puerto estándar 5432)
+    * Nombre de Base de Datos: `ecommerce_moviles`
+    * Módulos Odoo instalados: Ventas (`sale` / `sale_management`), Inventario (`stock`)
+
+  - Infraestructura de Red y Conectividad:
+    * Red Virtual / VPN: Tailscale (malla WireGuard para interconectar laptop y móvil)
+    * Puertos:
+      - Backend Kestrel HTTP: 5124 (vinculado a 0.0.0.0)
+      - Backend Kestrel HTTPS: 7144
+      - Odoo ERP HTTP: 8069
+      - PostgreSQL: 5432
+
+
+================================================================================
+2. ARQUITECTURA DEL SISTEMA Y FLUJO DE DATOS
+================================================================================
+
+2.1 Diagrama Textual de Flujo de Datos
+
+ +-----------------------------------------------------------------------------+
+ |                         DISPOSITIVO MÓVIL (FLUTTER)                        |
+ |                                                                             |
+ |  [UI Screens: Login / Catálogo / Detalle / Carrito / Pedidos]               |
+ |                               │                                             |
+ |  [Providers: AuthProvider, ProductProvider, CartProvider, OrderProvider]    |
+ |                               │                                             |
+ |  [Local Storage: SharedPreferences (cached_user_session, shopping_cart)]   |
+ |                               │                                             |
+ |  [ApiClient: Envío HTTP REST + JSON / Manejo de Envelopes y Errores]        |
+ +-----------------------------------------------------------------------------+
+                                      │
+                                      ▼
+                        [ RED TAILSCALE (VPN MESH) ]
+                        IP Laptop (Ej: 100.101.117.77:5124)
+                        Bypass de restricciones de red local y NAT
+                                      │
+                                      ▼
+ +-----------------------------------------------------------------------------+
+ |                     BACKEND ASP.NET CORE (.NET 10)                         |
+ |                                                                             |
+ |  [ECommerce.WebApi]                                                         |
+ |    - Middlewares: ExceptionHandlingMiddleware, CORS ("AllowMobileApp")      |
+ |    - Controllers: AuthController, ProductsController, CategoriesController, |
+ |                   OrdersController                                          |
+ |                               │                                             |
+ |  [ECommerce.Application]                                                    |
+ |    - Use Cases: LoginUseCase, GetProductsUseCase, GetProductByIdUseCase,   |
+ |                 GetCategoriesUseCase, CreateOrderUseCase, GetOrdersUseCase  |
+ |    - DTOs & ApiResponse<T> Wrapper                                          |
+ |    - Interfaces: IOdooService                                               |
+ |                               │                                             |
+ |  [ECommerce.Domain]                                                         |
+ |    - Entities: Product, Category, Order, OrderItem                          |
+ |    - Enums: OrderStatus (Draft, Sent, Confirmed, Done, Cancelled)           |
+ |                               │                                             |
+ |  [ECommerce.Infrastructure]                                                 |
+ |    - OdooService: Cliente JSON-RPC 2.0 (HttpClient)                         |
+ |    - Mappers: OdooProductMapper, OdooCategoryMapper, OdooOrderMapper        |
+ |    - Settings: OdooSettings (Url, Database, Username, Password)             |
+ +-----------------------------------------------------------------------------+
+                                      │
+                                      ▼
+                        [ JSON-RPC 2.0 over HTTP ]
+                        Endpoint: http://localhost:8069/jsonrpc
+                        Llamadas: common.authenticate, object.execute_kw
+                                      │
+                                      ▼
+ +-----------------------------------------------------------------------------+
+ |                        MOTOR ERP: ODOO COMMUNITY                            |
+ |                                                                             |
+ |  - Módulo de Seguridad y Usuarios: res.users, res.partner                  |
+ |  - Módulo de Catálogo e Inventario: product.template, product.category,    |
+ |                                     stock.quant                             |
+ |  - Módulo de Ventas: sale.order, sale.order.line                           |
+ +-----------------------------------------------------------------------------+
+                                      │
+                                      ▼
+                       [ CONEXIÓN LOCAL SQL / TCP ]
+                                      │
+                                      ▼
+ +-----------------------------------------------------------------------------+
+ |                   MOTOR DE BASE DE DATOS: POSTGRESQL                        |
+ |                                                                             |
+ |  - Instancia Local (Puerto 5432)                                            |
+ |  - Base de Datos Transaccional: `ecommerce_moviles`                         |
+ +-----------------------------------------------------------------------------+
+
+2.2 Justificación y Rol de Cada Capa
+
+  a) Capa de Presentación (Flutter Mobile):
+     - Rol: Proporcionar una interfaz de usuario nativa, fluida y reactiva para 
+       Android e iOS.
+     - Justificación: No expone la lógica de conexión a Odoo ni almacena credenciales 
+       maestras del sistema. Implementa Clean Architecture propia con datasources 
+       locales y remotos, garantizando que el carrito y la sesión persistan aun 
+       sin conexión y evitando recálculos innecesarios.
+
+  b) Capa de API Gateway / Orquestador (ASP.NET Core Web API):
+     - Rol: Actúa como Backend-For-Frontend (BFF), adaptador de protocolo y capa 
+       de seguridad/abstracción.
+     - Justificación: 
+       * Odoo no debe exponerse directamente a internet ni a clientes móviles 
+         sin intermediarios debido a riesgos de seguridad y acoplamiento excesivo.
+       * Transforma las llamadas RESTful estándar (GET, POST JSON) emitidas por la 
+         app móvil en llamadas de bajo nivel JSON-RPC/XML-RPC (`execute_kw`) 
+         entendidas por el ORM de Odoo.
+       * Estandariza las respuestas en un modelo unificado `ApiResponse<T>`.
+       * Centraliza el manejo de excepciones y errores de conexión con 
+         `ExceptionHandlingMiddleware`.
+       * Desacopla la aplicación móvil del esquema interno de datos de Odoo.
+
+  c) Capa de Negocio y Motor Transaccional (Odoo ERP + PostgreSQL):
+     - Rol: Fuente de la verdad empresarial.
+     - Justificación: Centraliza las reglas fiscales, listas de precios, control 
+       de existencias, estados de facturación, despachos y contabilidad. Toda 
+       orden generada por el móvil entra directamente al ciclo comercial de la 
+       empresa sin necesidad de sincronizaciones batch complejas.
+
+
+================================================================================
+3. DETALLE DEL BACKEND (.NET WEB API)
+================================================================================
+
+3.1 Estructura y Patrones de Arquitectura Implementados
+El backend sigue rigurosamente los principios de Clean Architecture (Arquitectura 
+Limpia) dividida en proyectos independientes de C# con dependencias apuntando 
+hacia el centro (Domain):
+
+  - Separación de Responsabilidades:
+    * ECommerce.Domain (Centro, sin dependencias externas).
+    * ECommerce.Application (Depende únicamente de Domain).
+    * ECommerce.Infrastructure (Implementa interfaces de Application, interactúa con Odoo).
+    * ECommerce.WebApi (Punto de entrada HTTP, expone controladores y middlewares).
+    * ECommerce.Tests (Pruebas unitarias de UseCases y Mappers).
+
+  - Patrones Implementados:
+    * Use Case Pattern (Casos de Uso unitarios por acción de negocio, facilitando 
+      mantenibilidad y pruebas unitarias aisladas con Moq).
+    * Repository / Service Abstraction: La interfaz `IOdooService` se define en 
+      Application e implementa en Infrastructure.
+    * Data Transfer Object (DTO): Los contratos de datos expuestos a la API son 
+      independientes de las entidades del dominio y de los modelos RPC de Odoo.
+    * Centralized Error Handling: Middleware ASP.NET Core que intercepta fallos y 
+      los formatea como respuestas JSON estructuradas con códigos HTTP canónicos.
+
+3.2 Descripción de Cada Proyecto en la Solución
+
+  1. `ECommerce.Domain`:
+     - Entidades principales:
+       * `BaseEntity`: Clase base abstracta con Id entero.
+       * `Product`: Propiedades del producto (Name, Description, Price, Stock, 
+         CategoryId, CategoryName, ImageUrl, Barcode, DefaultCode).
+       * `Category`: Categoría de productos con soporte para jerarquías (ParentId).
+       * `Order`: Pedido de venta con datos del cliente (CustomerId, CustomerName, 
+         CustomerEmail), fecha, total y lista de ítems.
+       * `OrderItem`: Línea de producto (ProductId, ProductName, Quantity, UnitPrice, 
+         Subtotal calculado).
+     - Enumeraciones:
+       * `OrderStatus`: Estados de la orden (`Draft = 1`, `Sent = 2`, `Confirmed = 3`, 
+         `Done = 4`, `Cancelled = 5`).
+
+  2. `ECommerce.Application`:
+     - Contiene los contratos e invariantes de negocio:
+       * `Interfaces/IOdooService.cs`: Define métodos para autenticación, consulta 
+         de productos/categorías y creación/consulta de órdenes.
+       * `UseCases/Auth/LoginUseCase.cs`: Valida parámetros y autentica vía Odoo.
+       * `UseCases/Products/GetProductsUseCase.cs`: Filtra productos por categoría opcional.
+       * `UseCases/Products/GetProductByIdUseCase.cs`: Obtiene producto por Id o lanza `NotFoundException`.
+       * `UseCases/Categories/GetCategoriesUseCase.cs`: Obtiene listado de categorías.
+       * `UseCases/Orders/CreateOrderUseCase.cs`: Valida CustomerId, líneas y precios antes de crear en Odoo.
+       * `UseCases/Orders/GetOrdersUseCase.cs`: Consulta órdenes filtradas por cliente.
+       * `Common/Models/ApiResponse.cs`: Formato genérico `{ success, message, data }`.
+       * `Common/Exceptions/`: `NotFoundException`, `OdooIntegrationException`.
+
+  3. `ECommerce.Infrastructure`:
+     - Implementación técnica y adaptadores externos:
+       * `Odoo/Services/OdooService.cs`: Orquestador de llamadas HTTP JSON-RPC a Odoo.
+       * `Odoo/Models/`: Modelos de serialización JSON (`OdooRpcRequest`, `OdooRpcResponse`, 
+         `OdooProductModel`, `OdooCategoryModel`, `OdooOrderModel`, `OdooOrderLineModel`).
+       * `Mappers/`: Conversores estáticos (`OdooProductMapper`, `OdooCategoryMapper`, 
+         `OdooOrderMapper`, `OdooJsonHelper`).
+       * `Configuration/OdooSettings.cs`: Mapeo de la sección de configuración `OdooSettings`.
+
+  4. `ECommerce.WebApi`:
+     - Ensamblado y capa de exposición HTTP:
+       * `Program.cs`: Configuración del contenedor IoC, Swagger, CORS, Middlewares.
+       * `Middlewares/ExceptionHandlingMiddleware.cs`: Mapeo de excepciones a 
+         códigos HTTP (400 Bad Request, 404 Not Found, 502 Bad Gateway para fallos Odoo, 500).
+       * `Controllers/`: Controladores API REST derivados de `BaseApiController`.
+
+  5. `ECommerce.Tests`:
+     - 19 pruebas unitarias automatizadas (xUnit + Moq + FluentAssertions) que cubren:
+       * `LoginUseCaseTests` (autenticación válida, campos vacíos).
+       * `GetProductsUseCaseTests` (listado general y filtrado por categoría).
+       * `GetProductByIdUseCaseTests` (producto existente y excepción NotFound).
+       * `CreateOrderUseCaseTests` (creación exitosa, validaciones de CustomerId y líneas).
+       * `OdooOrderMapperTests` (mapeo exhaustivo de estados Odoo -> OrderStatus).
+
+3.3 Controladores, Rutas y Endpoints Expuestos
+
+  - Autenticación (`AuthController` -> `/api/Auth`):
+    * `POST /api/Auth/login`
+      - Body: `{ "username": "string", "password": "string" }`
+      - Respuesta 200 OK: `ApiResponse<LoginResponseDto>` conteniendo `uid`, `partnerId`, 
+        `name`, `username`, `sessionId`, `isAuthenticated`.
+      - Respuesta 401 Unauthorized: Si las credenciales fallan en Odoo.
+
+  - Catálogo de Productos (`ProductsController` -> `/api/Products`):
+    * `GET /api/Products?categoryId={id}`
+      - Query params: `categoryId` (opcional, entero).
+      - Respuesta 200 OK: `ApiResponse<IReadOnlyList<ProductDto>>`.
+    * `GET /api/Products/{id}`
+      - Parámetro de ruta: `id` (entero).
+      - Respuesta 200 OK: `ApiResponse<ProductDto>`.
+      - Respuesta 404 Not Found: Si el producto no existe o tiene `sale_ok = false`.
+
+  - Categorías (`CategoriesController` -> `/api/Categories`):
+    * `GET /api/Categories`
+      - Respuesta 200 OK: `ApiResponse<IReadOnlyList<CategoryDto>>`.
+
+  - Órdenes y Pedidos (`OrdersController` -> `/api/Orders`):
+    * `POST /api/Orders`
+      - Body: `CreateOrderDto`
+        ```json
+        {
+          "customerId": 7,
+          "items": [
+            { "productId": 12, "quantity": 2, "unitPrice": 45.50 }
+          ]
+        }
+        ```
+      - Respuesta 201 Created: `ApiResponse<OrderDto>` con la orden confirmada y su ID de Odoo.
+      - Respuesta 400 Bad Request: Si falla la validación de negocio.
+    * `GET /api/Orders?customerId={id}`
+      - Query params: `customerId` (requerido, entero).
+      - Respuesta 200 OK: `ApiResponse<IReadOnlyList<OrderDto>>` con las líneas de cada pedido.
+
+3.4 Integración con Odoo (Protocolo y Mapeo de Modelos)
+
+  - Protocolo y Transporte:
+    Odoo expone APIs remotas vía XML-RPC y JSON-RPC. En este backend se implementa 
+    el protocolo JSON-RPC 2.0 sobre HTTP hacia el endpoint `/jsonrpc`, utilizando 
+    `HttpClient` tipado de .NET.
+    * Para autenticación: Invoca el servicio `"common"` y método `"authenticate"`:
+      `args: [ database, username, password, {} ]` -> Devuelve el `uid` (User ID).
+    * Para consultas y operaciones ORM: Invoca el servicio `"object"` y método `"execute_kw"`:
+      `args: [ database, uid, password, model, method, argsList, kwargsDict ]`
+
+  - Mapeo de Modelos C# <-> Odoo ORM:
+    * `res.users`: Se consulta tras la autenticación para obtener el `partner_id` 
+      (identificador del cliente en `res.partner`), necesario para crear pedidos.
+    * `product.template`: Mapeado a `ProductDto` y `Product`.
+      - Campos solicitados en Odoo: `id`, `name`, `description_sale`, `list_price`, 
+        `qty_available`, `categ_id` (many2one), `barcode`, `default_code`, `image_128`.
+      - Filtro de dominio: `[["sale_ok", "=", true]]`.
+      - Manejo de imágenes: Si `image_128` contiene Base64, el backend lo formatea 
+        como data URI: `data:image/png;base64,{base64}`.
+    * `product.category`: Mapeado a `CategoryDto`.
+      - Campos solicitados: `id`, `name`, `parent_id` (many2one).
+    * `sale.order`: Mapeado a `OrderDto` y `Order`.
+      - Para creación: Se envía payload a `sale.order.create` con la sintaxis de 
+        tuplas de Odoo `(0, 0, { valores })`:
+        `order_line: [ [0, 0, { "product_id": id, "product_uom_qty": qty, "price_unit": price }] ]`
+      - Campos leídos: `id`, `name`, `partner_id`, `date_order`, `state`, `amount_total`, `order_line`.
+    * `sale.order.line`: Mapeado a `OrderItemDto`.
+      - Campos leídos: `id`, `order_id`, `product_id`, `name`, `product_uom_qty`, `price_unit`, `price_subtotal`.
+    * Mapeo de Estados:
+      - Odoo `"draft"` -> `OrderStatus.Draft`
+      - Odoo `"sent"` -> `OrderStatus.Sent`
+      - Odoo `"sale"` -> `OrderStatus.Confirmed`
+      - Odoo `"done"` -> `OrderStatus.Done`
+      - Odoo `"cancel"` -> `OrderStatus.Cancelled`
+
+3.5 Configuración y Archivos Clave del Backend
+  - `appsettings.json`:
+    * Define la sección `OdooSettings`:
+      ```json
+      "OdooSettings": {
+        "Url": "http://localhost:8069",
+        "Database": "ecommerce_moviles",
+        "Username": "isra@gmail.com",
+        "Password": "root",
+        "TimeoutSeconds": 30
+      }
+      ```
+    * Define la política CORS con orígenes permitidos (localhost, emuladores y la IP 
+      de Tailscale del host).
+  - `appsettings.Development.json`:
+    * Contiene configuración para el entorno de desarrollo local.
+  - `launchSettings.json`:
+    * Perfil de ejecución Kestrel configurado en `"applicationUrl": "http://0.0.0.0:5124"`.
+    * La vinculación a `0.0.0.0` es obligatoria para permitir que paquetes provenientes 
+      de la interfaz de red virtual de Tailscale sean aceptados por el servidor web.
+
+
+================================================================================
+4. DETALLE DEL FRONTEND (FLUTTER)
+================================================================================
+
+4.1 Arquitectura y Organización de Carpetas (`mobile/ecommerce_app`)
+El frontend móvil está estructurado siguiendo los principios de Clean Architecture:
+
+  mobile/ecommerce_app/lib/
+  ├── main.dart                      # Inicialización async, composición de dependencias y runApp
+  ├── di/
+  │   └── dependency_injection.dart  # Configuración auxiliar de inyección de dependencias
+  ├── core/
+  │   ├── constants/
+  │   │   ├── api_constants.dart     # URLs base, endpoints (/api/Products, etc.) y timeouts
+  │   │   └── app_colors.dart        # Paleta cromática oficial de la app
+  │   ├── errors/
+  │   │   ├── exceptions.dart        # ServerException, NetworkException, AuthException
+  │   │   └── failures.dart          # Mapeo a fallos para la capa de presentación
+  │   └── utils/
+  │       ├── currency_formatter.dart# Formato de moneda para precios
+  │       └── date_formatter.dart    # Formato de fechas para historial de pedidos
+  ├── domain/
+  │   ├── entities/                  # Modelos de negocio inmutables (User, Product, Cart, CartItem, Order, OrderItem, Category)
+  │   └── repositories/              # Contratos de repositorios (i_auth_repository, i_product_repository, i_cart_repository, i_order_repository)
+  ├── application/
+  │   └── use_cases/                 # Casos de uso específicos organizados por módulo:
+  │       ├── auth/                  # LoginUseCase, GetSavedUserUseCase, LogoutUseCase
+  │       ├── cart/                  # GetCartUseCase, AddToCartUseCase, UpdateCartQuantityUseCase, RemoveFromCartUseCase, ClearCartUseCase
+  │       ├── orders/                # CreateOrderUseCase, GetOrdersUseCase
+  │       └── products/              # GetProductsUseCase, GetProductByIdUseCase, GetCategoriesUseCase
+  ├── infrastructure/
+  │   ├── http/
+  │   │   └── api_client.dart        # Cliente HTTP centralizado con deserialización de ApiResponse<T>
+  │   ├── datasources/
+  │   │   ├── local/                 # AuthLocalDataSource, CartLocalDataSource (SharedPreferences)
+  │   │   └── remote/                # AuthRemoteDataSource, ProductRemoteDataSource, OrderRemoteDataSource
+  │   ├── mappers/                   # Conversores Model <-> Entity (user, product, category, order)
+  │   ├── models/                    # DTOs de serialización JSON
+  │   └── repositories_impl/         # Implementaciones concretas de los repositorios del dominio
+  └── presentation/
+      ├── providers/                 # State Notifiers: AuthProvider, ProductProvider, CartProvider, OrderProvider
+      ├── routes/                    # AppRoutes (rutas nombradas y onGenerateRoute con argumentos)
+      ├── screens/                   # Pantallas completas de la aplicación
+      │   ├── auth/login_screen.dart
+      │   ├── catalog/catalog_screen.dart & product_detail_screen.dart
+      │   ├── cart/cart_screen.dart
+      │   └── orders/order_history_screen.dart & order_success_screen.dart
+      ├── theme/app_theme.dart       # Estilos globales de Material 3
+      └── widgets/                   # Componentes reutilizables (ProductCard, CartItemTile, CustomButton, LoadingIndicator, etc.)
+
+4.2 Gestor de Estado y Dependencias Clave (`pubspec.yaml`)
+  - Gestor de Estado: `provider: ^6.1.1`
+    * Se utiliza el patrón `ChangeNotifier` combinado con `MultiProvider` en la raíz 
+      de la aplicación (`main.dart`).
+    * Provee inyección de dependencias y actualización reactiva de la interfaz mediante 
+      `context.watch<T>()` y `context.read<T>()`.
+  - Dependencias Clave:
+    * `http: ^1.2.0`: Comunicación HTTP asíncrona contra la Web API.
+    * `shared_preferences: ^2.2.2`: Almacenamiento local persistente en formato clave-valor.
+    * `intl: ^0.19.0`: Localización y formateo numérico/fechas.
+    * `cupertino_icons: ^1.0.8`: Glifos de iconos adicionales.
+
+4.3 Flujo de Pantallas y Navegación
+  1. `LoginScreen` (`/login`):
+     - Formulario con validación de correo y contraseña.
+     - Conecta con `AuthProvider.login()`.
+     - Al autenticar con éxito, sustituye el stack de navegación hacia el catálogo.
+  2. `CatalogScreen` (`/catalog`):
+     - Pantalla principal con barra superior (AppBar) que incluye el botón de carrito 
+       con badge dinámico (`CartBadgeIcon`) y menú popup del usuario con accesos a 
+       "Mis Pedidos" y "Cerrar sesión".
+     - Barra horizontal de categorías (`CategorySelector`) para filtrado rápido.
+     - Cuadrícula (GridView) de productos con soporte para Pull-to-Refresh.
+  3. `ProductDetailScreen` (`/product-detail`):
+     - Recibe el `productId` vía argumentos de ruta.
+     - Muestra imagen grande, nombre, precio, stock disponible y descripción del producto.
+     - Permite seleccionar la cantidad a comprar validando que no exceda las existencias.
+     - Botón para agregar al carrito con notificación visual (SnackBar).
+  4. `CartScreen` (`/cart`):
+     - Muestra las líneas agregadas al carrito con miniaturas, nombres, precios y botones 
+       de incremento/decremento/eliminación.
+     - Permite edición directa de cantidad con validación contra el stock en tiempo real.
+     - Calcula el subtotal orientativo.
+     - Botón "Confirmar Pedido", que orquesta la creación de la orden en el backend.
+  5. `OrderSuccessScreen` (`/order-success`):
+     - Pantalla de confirmación con icono de éxito, número de orden asignado por Odoo, 
+       estado y total facturado.
+     - Botones para volver al catálogo ("Seguir Comprando") o ir al historial de compras.
+  6. `OrderHistoryScreen` (`/order-history`):
+     - Lista cronológica descendente de pedidos realizados por el usuario logueado.
+     - Muestra número de orden, fecha formateada, total y estado (`Borrador`, `Confirmado`, 
+       `Realizado`, etc.) con tarjetas desplegables para ver el detalle de ítems.
+
+4.4 Configuración de Red (`api_constants.dart`)
+  - Archivo: `mobile/ecommerce_app/lib/core/constants/api_constants.dart`
+  - Contenido:
+    ```dart
+    class ApiConstants {
+      static const String baseUrl = 'http://100.101.117.77:5124';
+      static const String products = '/api/Products';
+      static const String categories = '/api/Categories';
+      static const String orders = '/api/Orders';
+      static const String login = '/api/Auth/login';
+      static const Duration timeout = Duration(seconds: 15);
+    }
+    ```
+  - La variable `baseUrl` debe apuntar a la dirección IP asignada por Tailscale a la 
+    máquina donde corre la Web API, manteniendo el puerto `5124`.
+
+4.5 Manejo de Sesiones y Credenciales Locales
+  - Sesión de Usuario:
+    * Gestionada por `AuthLocalDataSource` sobre `SharedPreferences`.
+    * Al autenticarse, se serializa el objeto `User` en formato JSON bajo la clave 
+      `cached_user_session`.
+    * Guarda: `uid`, `name`, `username`, `partnerId`, `sessionId`.
+    * El atributo getter `customerId` resuelve: `partnerId ?? uid`, asegurando que 
+      al crear órdenes se envíe el identificador comercial de cliente que Odoo requiere.
+  - Carrito de Compras Persistente:
+    * Gestionado por `CartLocalDataSource` bajo la clave `cached_shopping_cart`.
+    * Mantiene el carrito en memoria RAM durante la ejecución y sincroniza en disco 
+      local cada vez que se agrega, modifica o elimina un ítem.
+
+
+================================================================================
+5. CONFIGURACIÓN DEL ENTORNO LOCAL Y DEPENDENCIAS EXTERNAS
+================================================================================
+
+5.1 Odoo ERP (Community Edition)
+  - Versión recomendada: Odoo Community 16.0, 17.0 o 18.0.
+  - Puerto HTTP por defecto: `8069`.
+  - Nombre de la Base de Datos requerida: `ecommerce_moviles`
+  - Módulos requeridos (deben instalarse desde el menú Aplicaciones de Odoo):
+    1. **Ventas** (`sale` / `sale_management`): Provee los modelos `sale.order` y `sale.order.line`.
+    2. **Inventario** (`stock`): Provee el control de existencias `qty_available` en `product.template`.
+  - Permisos de Usuario:
+    * El usuario configurado en `appsettings.json` debe tener permisos de acceso a 
+      Ventas e Inventario (preferiblemente Administrador del sistema para evitar bloqueos 
+      de ACLs en llamadas RPC).
+
+5.2 PostgreSQL
+  - Puerto por defecto: `5432`.
+  - Rol / Usuario: Creado durante la instalación del instalador de Odoo (por ejemplo `openpg` 
+    o `postgres`).
+  - Base de Datos: Creada y administrada automáticamente por Odoo mediante su gestor web 
+    en `http://localhost:8069/web/database/manager`.
+
+5.3 Red Virtual (Tailscale VPN)
+  - Motivo de uso:
+    * Durante las pruebas en dispositivos móviles físicos (conectados por Wi-Fi o datos 
+      móviles), la dirección `localhost` o `127.0.0.1` hace referencia al propio teléfono 
+      y no a la computadora de desarrollo.
+    * Las redes Wi-Fi públicas o de campus a menudo tienen activado el aislamiento de 
+      clientes (Client Isolation), lo que bloquea la comunicación directa entre IPs 
+      locales (ej. `192.168.1.X`).
+    * Tailscale establece una red mallada punto a punto segura (red CGNAT 100.x.x.x) 
+      entre la laptop y el smartphone sin requerir apertura de puertos en el router.
+  - Puertos involucrados:
+    * `5124`: Puerto HTTP de la API de .NET, expuesto en `0.0.0.0:5124`.
+
+
+================================================================================
+6. ESTADO ACTUAL, PENDIENTES Y HOJA DE RUTA (ROADMAP)
+================================================================================
+
+6.1 Funcionalidades 100% Operativas
+  [✓] Autenticación de usuarios contra Odoo ERP (`common.authenticate` + lectura de `res.users` y `res.partner`).
+  [✓] Persistencia de sesión de usuario en SharedPreferences.
+  [✓] Catálogo de productos completo recuperado desde Odoo (`product.template` con `sale_ok = true`).
+  [✓] Listado y filtrado reactivo por categorías comerciales (`product.category`).
+  [✓] Pantalla de detalle de producto con selector de cantidad y validación de stock local.
+  [✓] Carrito de compras reactivo con persistencia local en SharedPreferences.
+  [✓] Flujo de Checkout con creación confirmada de `sale.order` y `sale.order.line` en Odoo.
+  [✓] Historial de pedidos por cliente con detalle de ítems y estados mapeados.
+  [✓] Pruebas unitarias de backend en .NET (19 pruebas superadas exitosamente con xUnit).
+  [✓] Documentación interactiva Swagger / OpenAPI operativa en modo desarrollo.
+  [✓] Middleware de manejo global de excepciones con códigos HTTP estandarizados.
+
+6.2 Funcionalidades Parcialmente Implementadas o Pendientes
+  [~] Renderizado de Imágenes en Detalle de Producto:
+      * En `ProductCard`, la imagen base64 de Odoo (`image_128`) se procesa correctamente.
+      * En `ProductDetailScreen`, el código actual solo verifica `startsWith('http')`, 
+        por lo que las imágenes de Odoo en formato `data:image/png;base64,...` caen 
+        en el placeholder gris. Debe replicarse la lógica de decodificación Base64 en el detalle.
+  [~] Verificación de Stock en Tiempo Real antes de Checkout:
+      * Actualmente, la validación de existencias se realiza con los datos cargados en el 
+        catálogo. Falta una llamada de verificación previa al envío final de la orden 
+        para prevenir sobreventa por concurrencia.
+  [ ] Pasarela de Pago Integrada:
+      * Al confirmar el pedido, la orden se crea en Odoo en estado presupuesto/borrador (`Draft`), 
+        pero no existe un paso de cobro electrónico (ej. Stripe, MercadoPago, PayPal).
+  [ ] Registro de Nuevos Clientes (Sign Up / Register):
+      * La app móvil solo permite iniciar sesión con usuarios ya existentes en Odoo. 
+        Falta un endpoint y pantalla para registrar nuevos contactos (`res.partner` / `res.users`).
+  [ ] Transición de Estado de Órdenes:
+      * Actualmente se crean pedidos en estado `Draft`. Falta implementar la confirmación 
+        automática del pedido (`action_confirm`) en Odoo para descontar formalmente el inventario.
+  [ ] Pruebas Automatizadas en Flutter:
+      * El archivo `test/widget_test.dart` aún mantiene la plantilla por defecto del 
+        contador de Flutter y debe actualizarse con pruebas de widgets para los flujos reales.
+
+6.3 Hoja de Ruta de Mejoras Técnicas (Roadmap)
+  1. Configuración de Entornos con `.env` en Flutter:
+     * Migrar la constante cableada `baseUrl` en `api_constants.dart` al uso de la librería 
+       `flutter_dotenv`, permitiendo cambiar dinámicamente entre entornos local, Tailscale, 
+       staging y producción sin modificar código fuente.
+  2. Unificación y Seguridad de Configuración en Backend:
+     * Unificar `appsettings.json` y `appsettings.Development.json` (actualmente el archivo 
+       de desarrollo carece de la clave `Cors`, dependiendo de la configuración por defecto).
+     * Mover las credenciales maestras de Odoo (`Username`, `Password`) fuera de los archivos 
+       de control de versiones utilizando `dotnet user-secrets` o variables de entorno del SO.
+  3. Seguridad de Sesiones con JWT:
+     * El backend genera un identificador GUID de sesión (`SessionId`), pero los endpoints 
+       no validan un token JWT firmado. Se recomienda implementar autenticación con 
+       `JwtBearer` en ASP.NET Core para proteger los endpoints `/api/Orders`.
+  4. Corrección del Archivo de Solución `ECommerceProject.slnx`:
+     * El archivo de solución contiene rutas relativas que no incluyen la subcarpeta `backend/` 
+       (ej. `ECommerce.Application/` en lugar de `backend/ECommerce.Application/`). Se debe 
+       ajustar la ruta para permitir la compilación directa desde la raíz.
+  5. Capa de Caché en Memoria (MemoryCache / Redis):
+     * Incorporar caché para las categorías y productos frecuentes para reducir la latencia 
+       de las llamadas RPC a Odoo.
+================================================================================
+                           FIN DEL RESUMEN TÉCNICO
+================================================================================
