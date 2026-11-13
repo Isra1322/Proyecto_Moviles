@@ -271,4 +271,63 @@ public class OdooServiceRegistrationTests
         partnerVals.GetProperty("customer_rank").GetInt32().Should().Be(1);
         partnerVals.TryGetProperty("active", out _).Should().BeFalse();
     }
+
+    [Fact]
+    public async Task RegisterCustomerAsync_PassesCancellationTokenToPostAsync()
+    {
+        bool wasLinkedToProvidedToken = false;
+        using var cts = new CancellationTokenSource();
+        var expectedToken = cts.Token;
+
+        var handlerMock = new Mock<HttpMessageHandler>();
+        handlerMock
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>())
+            .Returns<HttpRequestMessage, CancellationToken>((req, ct) =>
+            {
+                if (req.RequestUri!.AbsolutePath.Contains("search_read"))
+                {
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("[]")
+                    });
+                }
+
+                if (req.RequestUri!.AbsolutePath.Contains("create"))
+                {
+                    cts.Cancel();
+                    wasLinkedToProvidedToken = ct.IsCancellationRequested;
+                    return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                    {
+                        Content = new StringContent("[123]")
+                    });
+                }
+
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound));
+            });
+
+        var httpClient = new HttpClient(handlerMock.Object);
+        var service = new OdooService(httpClient, _options, _jwtTokenServiceMock.Object, _credentialStoreMock.Object, _loggerMock.Object);
+
+        var request = new RegisterRequestDto
+        {
+            Name = "Token Test",
+            Email = "token@test.com",
+            Password = "Password123"
+        };
+
+        try
+        {
+            await service.RegisterCustomerAsync(request, expectedToken);
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected
+        }
+
+        wasLinkedToProvidedToken.Should().BeTrue("El CancellationToken debió propagarse a la llamada PostAsync");
+    }
 }

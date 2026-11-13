@@ -13,4 +13,5 @@ public interface IOdooService
     Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(CancellationToken cancellationToken = default);
     Task<OrderDto> CreateOrderAsync(CreateOrderDto orderDto, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OrderDto>> GetOrdersByCustomerAsync(int customerId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<OrderDto>> GetOrdersByPartnerAsync(int partnerId, CancellationToken cancellationToken = default) => GetOrdersByCustomerAsync(partnerId, cancellationToken);
 }

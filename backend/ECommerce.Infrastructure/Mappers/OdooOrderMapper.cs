@@ -41,7 +41,9 @@ public static class OdooOrderMapper
         var dateString = OdooJsonHelper.GetStringOrNull(order.DateOrder);
         DateTime.TryParse(dateString, out var orderDate);
 
-        var itemDtos = lines?.Select(ToItemDto).ToList() ?? new List<OrderItemDto>();
+        var itemDtos = lines != null && lines.Count > 0
+            ? lines.Select(ToItemDto).ToList()
+            : OdooJsonHelper.GetIntList(order.OrderLine).Select(id => new OrderItemDto { Id = id }).ToList();
 
         return new OrderDto
         {

@@ -59,6 +59,12 @@ public class ExceptionHandlingMiddleware
                 _logger.LogWarning(cancelEx, "Tiempo de espera agotado.");
                 break;
 
+            case TimeoutException timeoutEx:
+                statusCode = HttpStatusCode.RequestTimeout;
+                message = "La operación superó el tiempo límite de espera.";
+                _logger.LogWarning(timeoutEx, "Tiempo de espera agotado por timeout.");
+                break;
+
             case OdooIntegrationException odooEx:
                 statusCode = HttpStatusCode.BadGateway;
                 message = odooEx.Message;

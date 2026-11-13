@@ -149,4 +149,88 @@ public class OrdersControllerTests
         var objResult = (ObjectResult)result;
         objResult.StatusCode.Should().Be(StatusCodes.Status408RequestTimeout);
     }
+
+    [Fact]
+    public async Task GetMyOrders_WhenValidRequest_Returns200OkWithOrders()
+    {
+        // Arrange
+        var orders = new List<OrderDto>
+        {
+            new() { Id = 1, CustomerId = 7, TotalAmount = 150m, Status = OrderStatus.Confirmed }
+        };
+
+        _odooServiceMock
+            .Setup(s => s.GetOrdersByCustomerAsync(7, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(orders);
+
+        // Act
+        var result = await _controller.GetMyOrders(null, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var apiResponse = okResult.Value as ApiResponse<IReadOnlyList<OrderDto>>;
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data.Should().HaveCount(1);
+        apiResponse.Data![0].Id.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetMyOrders_WhenTimeoutException_Returns408RequestTimeout()
+    {
+        // Arrange
+        _odooServiceMock
+            .Setup(s => s.GetOrdersByCustomerAsync(7, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new TimeoutException("Timeout excedido"));
+
+        // Act
+        var result = await _controller.GetMyOrders(null, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(StatusCodes.Status408RequestTimeout);
+        var apiResponse = objResult.Value as ApiResponse<object>;
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeFalse();
+        apiResponse.Message.Should().Contain("tiempo");
+    }
+
+    [Fact]
+    public async Task GetMyOrders_WhenOperationCanceled_Returns408RequestTimeout()
+    {
+        // Arrange
+        _odooServiceMock
+            .Setup(s => s.GetOrdersByCustomerAsync(7, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        // Act
+        var result = await _controller.GetMyOrders(null, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(StatusCodes.Status408RequestTimeout);
+    }
+
+    [Fact]
+    public async Task GetMyOrders_WhenOdooFails_Returns502BadGateway()
+    {
+        // Arrange
+        _odooServiceMock
+            .Setup(s => s.GetOrdersByCustomerAsync(7, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OdooIntegrationException("Error de conexión con Odoo"));
+
+        // Act
+        var result = await _controller.GetMyOrders(null, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(StatusCodes.Status502BadGateway);
+        var apiResponse = objResult.Value as ApiResponse<object>;
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeFalse();
+    }
 }

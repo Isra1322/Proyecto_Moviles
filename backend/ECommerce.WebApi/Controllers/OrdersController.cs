@@ -101,12 +101,14 @@ public class OrdersController : BaseApiController
     }
 
     [HttpGet]
+    [HttpGet("my-orders")]
     [ProducesResponseType(typeof(ApiResponse<IReadOnlyList<OrderDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status408RequestTimeout)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status502BadGateway)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
-    public async Task<IActionResult> GetByCustomer([FromQuery] int? customerId, CancellationToken cancellationToken)
+    public async Task<IActionResult> GetMyOrders([FromQuery] int? customerId, CancellationToken cancellationToken)
     {
         try
         {
@@ -118,23 +120,37 @@ public class OrdersController : BaseApiController
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Acceso no autorizado al consultar pedidos.");
+            _logger.LogWarning(ex, "Acceso no autorizado al consultar pedidos: {Message}", ex.Message);
             return StatusCode(StatusCodes.Status401Unauthorized, ApiResponse<object>.Fail(ex.Message));
         }
         catch (ArgumentException ex)
         {
-            _logger.LogWarning(ex, "Solicitud inválida al consultar pedidos.");
+            _logger.LogWarning(ex, "Solicitud inválida al consultar pedidos: {Message}", ex.Message);
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "La consulta de pedidos en Odoo excedió el tiempo límite de espera.");
+            return StatusCode(StatusCodes.Status408RequestTimeout, ApiResponse<object>.Fail("La consulta de pedidos tardó demasiado tiempo y se canceló la conexión."));
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "La consulta de pedidos fue cancelada o superó el tiempo límite.");
+            return StatusCode(StatusCodes.Status408RequestTimeout, ApiResponse<object>.Fail("La consulta de pedidos tardó demasiado tiempo y se canceló la conexión."));
         }
         catch (OdooIntegrationException ex)
         {
-            _logger.LogError(ex, "Error de integración con Odoo al consultar pedidos.");
+            _logger.LogError(ex, "Error de integración con Odoo al consultar pedidos: {Message}", ex.Message);
             return StatusCode(StatusCodes.Status502BadGateway, ApiResponse<object>.Fail($"Error en el servidor de Odoo: {ex.Message}"));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error no controlado al consultar pedidos.");
+            _logger.LogError(ex, "Error no controlado al consultar pedidos: {Message}", ex.Message);
             return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Fail($"Error interno al consultar pedidos: {ex.Message}"));
         }
     }
+
+    [NonAction]
+    public Task<IActionResult> GetByCustomer([FromQuery] int? customerId, CancellationToken cancellationToken)
+        => GetMyOrders(customerId, cancellationToken);
 }

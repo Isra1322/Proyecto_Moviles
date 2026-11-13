@@ -22,7 +22,8 @@ public static class DependencyInjection
             var settings = serviceProvider.GetRequiredService<IOptions<OdooSettings>>().Value;
             if (!string.IsNullOrWhiteSpace(settings.Url))
             {
-                client.BaseAddress = new Uri(settings.Url.TrimEnd('/') + "/");
+                var normalizedUrl = settings.Url.Replace("://localhost", "://127.0.0.1");
+                client.BaseAddress = new Uri(normalizedUrl.TrimEnd('/') + "/");
             }
             if (!string.IsNullOrWhiteSpace(settings.ApiKey))
             {

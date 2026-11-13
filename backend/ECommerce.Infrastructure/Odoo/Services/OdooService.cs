@@ -48,7 +48,8 @@ public class OdooService : IOdooService
 
         if (_httpClient.BaseAddress == null && !string.IsNullOrWhiteSpace(_settings.Url))
         {
-            _httpClient.BaseAddress = new Uri(_settings.Url.TrimEnd('/') + "/");
+            var normalizedUrl = _settings.Url.Replace("://localhost", "://127.0.0.1");
+            _httpClient.BaseAddress = new Uri(normalizedUrl.TrimEnd('/') + "/");
         }
 
         if (_httpClient.DefaultRequestHeaders.Authorization == null && !string.IsNullOrWhiteSpace(_settings.ApiKey))
@@ -74,7 +75,8 @@ public class OdooService : IOdooService
 
     private string BuildJson2Url(string model, string method)
     {
-        return $"{_settings.Url.TrimEnd('/')}/json/2/{model}/{method}";
+        var normalizedUrl = _settings.Url.Replace("://localhost", "://127.0.0.1");
+        return $"{normalizedUrl.TrimEnd('/')}/json/2/{model}/{method}";
     }
 
     private static List<JsonElement> ExtractRecordsFromJson2(JsonElement responseElement)
@@ -135,6 +137,10 @@ public class OdooService : IOdooService
                 _logger.LogError("Error HTTP al comunicarse con Odoo JSON-2 en {Url} ({StatusCode}): {ErrorBody}", url, (int)httpResponse.StatusCode, errorBody);
                 throw new OdooIntegrationException($"Fallo en la conexión HTTP con Odoo JSON-2 ({url}): {(int)httpResponse.StatusCode} {httpResponse.ReasonPhrase} - {errorBody}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OdooIntegrationException)
         {
@@ -319,13 +325,17 @@ public class OdooService : IOdooService
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.PostAsync("/json/2/res.partner/create", jsonContent);
+            response = await _httpClient.PostAsync("/json/2/res.partner/create", jsonContent, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogError("Error HTTP al comunicarse con Odoo JSON-2 en /json/2/res.partner/create ({StatusCode}): {ErrorBody}", (int)response.StatusCode, errorBody);
                 throw new OdooIntegrationException($"Fallo en la conexión HTTP con Odoo JSON-2 (/json/2/res.partner/create): {(int)response.StatusCode} {response.ReasonPhrase} - {errorBody}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OdooIntegrationException)
         {
@@ -524,13 +534,17 @@ public class OdooService : IOdooService
         HttpResponseMessage response;
         try
         {
-            response = await _httpClient.PostAsync("/json/2/sale.order/create", jsonContent);
+            response = await _httpClient.PostAsync("/json/2/sale.order/create", jsonContent, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
                 var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
                 _logger.LogError("Error HTTP al comunicarse con Odoo JSON-2 en /json/2/sale.order/create ({StatusCode}): {ErrorBody}", (int)response.StatusCode, errorBody);
                 throw new OdooIntegrationException($"Fallo en la conexión HTTP con Odoo JSON-2 (/json/2/sale.order/create): {(int)response.StatusCode} {response.ReasonPhrase} - {errorBody}");
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex) when (ex is not OdooIntegrationException)
         {
@@ -619,7 +633,7 @@ public class OdooService : IOdooService
         try
         {
             using var pickingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            pickingCts.CancelAfter(TimeSpan.FromSeconds(6));
+            pickingCts.CancelAfter(TimeSpan.FromSeconds(8));
 
             await AutoValidatePickingForOrderAsync(orderId, pickingCts.Token);
         }
@@ -713,6 +727,63 @@ public class OdooService : IOdooService
             }
         }
 
+        if (result.Count == 0)
+        {
+            try
+            {
+                var saleOrderQuery = new
+                {
+                    domain = new object[]
+                    {
+                        new object[] { "id", "=", orderId }
+                    },
+                    fields = new[] { "id", "picking_ids" },
+                    limit = 1
+                };
+
+                var soResponse = await CallJson2Async<JsonElement>("sale.order", "search_read", saleOrderQuery, cancellationToken);
+                var soRecords = ExtractRecordsFromJson2(soResponse);
+                if (soRecords.Count > 0 && soRecords[0].TryGetProperty("picking_ids", out var pickIdsProp) && pickIdsProp.ValueKind == JsonValueKind.Array)
+                {
+                    var pickIds = pickIdsProp.EnumerateArray()
+                        .Where(p => p.ValueKind == JsonValueKind.Number)
+                        .Select(p => p.GetInt32())
+                        .ToList();
+
+                    if (pickIds.Count > 0)
+                    {
+                        var fallbackQuery = new
+                        {
+                            domain = new object[]
+                            {
+                                new object[] { "id", "in", pickIds.ToArray() },
+                                new object[] { "state", "not in", new object[] { "done", "cancel" } }
+                            },
+                            fields = new[] { "id", "state" },
+                            limit = 5
+                        };
+
+                        var fallbackResponse = await CallJson2Async<JsonElement>("stock.picking", "search_read", fallbackQuery, cancellationToken);
+                        var fallbackRecords = ExtractRecordsFromJson2(fallbackResponse);
+                        foreach (var elem in fallbackRecords)
+                        {
+                            if (elem.TryGetProperty("id", out var fIdProp) && fIdProp.ValueKind == JsonValueKind.Number)
+                            {
+                                var fState = elem.TryGetProperty("state", out var fStateProp) && fStateProp.ValueKind == JsonValueKind.String
+                                    ? fStateProp.GetString() ?? string.Empty
+                                    : string.Empty;
+                                result.Add(new OdooPickingRecord(fIdProp.GetInt32(), fState));
+                            }
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Fallo en consulta de respaldo de picking_ids para sale.order {OrderId}", orderId);
+            }
+        }
+
         return result;
     }
 
@@ -736,6 +807,10 @@ public class OdooService : IOdooService
                 cancellationToken);
 
             _logger.LogInformation("Disponibilidad asignada (action_assign) para stock.picking ID {PickingId}", pickingId);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -767,159 +842,178 @@ public class OdooService : IOdooService
             // 1. Asignar disponibilidad en Odoo (action_assign)
             await ActionAssignPickingAsync(pickingId, cancellationToken);
 
-            // 2. Estrategia A: Establecer cantidades hechas iguales a las reservadas para evitar wizards de entrega inmediata
-            await SetMoveQuantitiesAsync(pickingId, cancellationToken);
-
-            // 3. Estrategia B: Ejecutar button_validate con contexto de auto-confirmación y procesar asistente si Odoo lo requiere
+            // 2. Validar albarán de entrega (auto-llenar cantidades, button_validate con bypass y procesar wizard si aplica)
             await ValidatePickingAsync(pickingId, cancellationToken);
         }
     }
 
     /// <summary>
-    /// Marca las cantidades de entrega iguales a las reservadas antes de validar, evitando wizards de entrega inmediata.
+    /// Auto-llena las cantidades realizadas (quantity o quantity_done) en las líneas stock.move
+    /// asociadas al albarán antes de validar, garantizando que Odoo reconozca la entrega completa y no abra wizards interactivos.
     /// </summary>
-    private async Task SetMoveQuantitiesAsync(int pickingId, CancellationToken cancellationToken = default)
+    private async Task AutoFillMoveQuantitiesAsync(int pickingId, CancellationToken cancellationToken = default)
     {
-        bool reservationSucceeded = false;
         try
         {
-            var setQtyPayload = new Dictionary<string, object>
+            var movesQuery = new
             {
-                ["ids"] = new[] { pickingId },
-                ["context"] = new Dictionary<string, object>()
+                domain = new object[]
+                {
+                    new object[] { "picking_id", "=", pickingId }
+                },
+                fields = new[] { "id", "product_uom_qty" },
+                limit = 100
             };
 
-            await CallJson2Async<JsonElement>(
-                "stock.picking",
-                "action_set_quantities_to_reservation",
-                setQtyPayload,
-                cancellationToken);
+            var movesResponse = await CallJson2Async<JsonElement>("stock.move", "search_read", movesQuery, cancellationToken);
+            var moveRecords = ExtractRecordsFromJson2(movesResponse);
 
-            reservationSucceeded = true;
-            _logger.LogInformation("action_set_quantities_to_reservation ejecutado exitosamente para stock.picking {PickingId}", pickingId);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "action_set_quantities_to_reservation no aplicado para stock.picking {PickingId}: {Message}", pickingId, ex.Message);
-        }
-
-        // Si action_set_quantities_to_reservation no tuvo efecto o no está soportado, verificar stock.move
-        if (!reservationSucceeded)
-        {
-            try
+            if (moveRecords == null || moveRecords.Count == 0)
             {
-                var movesQuery = new
+                _logger.LogInformation("No se encontraron líneas stock.move para el albarán ID {PickingId}", pickingId);
+                return;
+            }
+
+            foreach (var move in moveRecords)
+            {
+                if (move.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
                 {
-                    domain = new object[]
+                    var moveId = idProp.GetInt32();
+                    decimal qty = 1;
+                    if (move.TryGetProperty("product_uom_qty", out var qtyProp) && qtyProp.ValueKind == JsonValueKind.Number)
                     {
-                        new object[] { "picking_id", "=", pickingId }
-                    },
-                    fields = new[] { "id", "product_uom_qty" },
-                    limit = 50
-                };
+                        qty = qtyProp.GetDecimal();
+                    }
 
-                var movesResponse = await CallJson2Async<JsonElement>("stock.move", "search_read", movesQuery, cancellationToken);
-                var moveRecords = ExtractRecordsFromJson2(movesResponse);
-
-                foreach (var move in moveRecords)
-                {
-                    if (move.TryGetProperty("id", out var idProp) && idProp.ValueKind == JsonValueKind.Number)
+                    bool updated = false;
+                    try
                     {
-                        var moveId = idProp.GetInt32();
-                        decimal qty = 1;
-                        if (move.TryGetProperty("product_uom_qty", out var qtyProp) && qtyProp.ValueKind == JsonValueKind.Number)
+                        var writePayload = new
                         {
-                            qty = qtyProp.GetDecimal();
-                        }
-
-                        var writePayload = new Dictionary<string, object>
-                        {
-                            ["ids"] = new[] { moveId },
-                            ["vals"] = new Dictionary<string, object>
+                            ids = new[] { moveId },
+                            vals = new
                             {
-                                ["quantity"] = qty,
-                                ["picked"] = true
+                                quantity = qty,
+                                picked = true
                             }
                         };
+                        await CallJson2Async<JsonElement>("stock.move", "write", writePayload, cancellationToken);
+                        updated = true;
+                        _logger.LogInformation("stock.move ID {MoveId} actualizado con quantity={Qty}, picked=true", moveId, qty);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogDebug(ex, "No se pudo actualizar stock.move ID {MoveId} con quantity/picked, reintentando con quantity_done: {Message}", moveId, ex.Message);
+                    }
 
+                    if (!updated)
+                    {
                         try
                         {
-                            await CallJson2Async<JsonElement>("stock.move", "write", writePayload, cancellationToken);
-                        }
-                        catch
-                        {
-                            var fallbackPayload = new Dictionary<string, object>
+                            var fallbackPayload = new
                             {
-                                ["ids"] = new[] { moveId },
-                                ["vals"] = new Dictionary<string, object>
+                                ids = new[] { moveId },
+                                vals = new
                                 {
-                                    ["quantity_done"] = qty
+                                    quantity_done = qty
                                 }
                             };
                             await CallJson2Async<JsonElement>("stock.move", "write", fallbackPayload, cancellationToken);
+                            _logger.LogInformation("stock.move ID {MoveId} actualizado con quantity_done={Qty}", moveId, qty);
+                        }
+                        catch (Exception exFallback)
+                        {
+                            _logger.LogWarning(exFallback, "Fallo al actualizar stock.move ID {MoveId} con quantity_done: {Message}", moveId, exFallback.Message);
                         }
                     }
                 }
             }
-            catch (Exception ex)
-            {
-                _logger.LogDebug(ex, "No fue necesario actualizar stock.move manualmente para picking {PickingId}: {Message}", pickingId, ex.Message);
-            }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Advertencia al auto-llenar cantidades de stock.move para picking ID {PickingId}: {Message}", pickingId, ex.Message);
         }
     }
 
+    private Task SetMoveQuantitiesAsync(int pickingId, CancellationToken cancellationToken = default)
+    {
+        return AutoFillMoveQuantitiesAsync(pickingId, cancellationToken);
+    }
+
     /// <summary>
-    /// Ejecuta la validación de salida de inventario (button_validate),
-    /// enviando banderas de auto-confirmación y procesando el wizard si Odoo devuelve ir.actions.act_window.
+    /// Ejecuta la validación de salida de inventario (button_validate):
+    /// 1. Auto-llena las cantidades realizadas (quantity) antes de validar.
+    /// 2. Invoca button_validate enviando flags de contexto para omitir asistentes interactivos.
+    /// 3. Procesa el Wizard interactivo si Odoo devuelve un ir.actions.act_window llamando al método process().
+    /// 4. Mantiene la resiliencia en bloque defensivo try-catch.
     /// </summary>
     private async Task ValidatePickingAsync(int pickingId, CancellationToken cancellationToken = default)
     {
-        var validatePayload = new Dictionary<string, object>
+        try
         {
-            ["ids"] = new[] { pickingId },
-            ["context"] = new Dictionary<string, object>
+            // 1. Auto-llenar cantidades realizadas (quantity) antes de validar
+            await AutoFillMoveQuantitiesAsync(pickingId, cancellationToken);
+
+            // 2. Validar con bypass de wizards en el contexto (incluyendo skip_sms para evitar confirm.stock.sms)
+            var validatePayload = new
             {
-                ["skip_immediate"] = true,
-                ["skip_backorder"] = true,
-                ["skip_sanity_check"] = true,
-                ["button_validate_picking_ids"] = new[] { pickingId }
+                ids = new[] { pickingId },
+                context = new
+                {
+                    skip_immediate = true,
+                    skip_backorder = true,
+                    skip_sms = true,
+                    skip_sanity_check = true,
+                    button_validate_picking_ids = new[] { pickingId }
+                }
+            };
+
+            var validateResult = await CallJson2Async<JsonElement>(
+                "stock.picking",
+                "button_validate",
+                validatePayload,
+                cancellationToken);
+
+            _logger.LogInformation("button_validate ejecutado para stock.picking ID {PickingId}", pickingId);
+
+            // Si Odoo devuelve true directamente, la entrega fue validada con éxito
+            if (validateResult.ValueKind == JsonValueKind.True)
+            {
+                _logger.LogInformation("stock.picking ID {PickingId} validado exitosamente en estado 'done'. Stock físico (qty_available) descontado en Odoo.", pickingId);
+                return;
             }
-        };
 
-        var validateResult = await CallJson2Async<JsonElement>(
-            "stock.picking",
-            "button_validate",
-            validatePayload,
-            cancellationToken);
+            // 3. Procesar el Wizard si Odoo aún lo devuelve (ir.actions.act_window con res_model)
+            if (IsActionWindow(validateResult, out var actionType, out var resModel, out var wizardId, out var wizardContext))
+            {
+                _logger.LogInformation(
+                    "button_validate devolvió asistente de confirmación '{ResModel}' (ID: {WizardId}) para stock.picking {PickingId}. Procesando asistente...",
+                    resModel, wizardId, pickingId);
 
-        _logger.LogInformation("button_validate ejecutado para stock.picking ID {PickingId}", pickingId);
+                await ProcessWizardAsync(pickingId, resModel, wizardId, cancellationToken);
+            }
 
-        // Si Odoo devuelve true directamente, la entrega fue validada con éxito
-        if (validateResult.ValueKind == JsonValueKind.True)
-        {
-            _logger.LogInformation("stock.picking ID {PickingId} validado exitosamente en estado 'done'. Stock físico (qty_available) descontado en Odoo.", pickingId);
-            return;
+            // Asegurar que la entrega quede formalmente en estado 'done'
+            await EnsurePickingDoneAsync(pickingId, cancellationToken);
         }
-
-        // Si Odoo devuelve un asistente/wizard (ir.actions.act_window), procesar la confirmación del asistente
-        if (IsActionWindow(validateResult, out var actionType, out var resModel, out var wizardId, out var wizardContext))
+        catch (OperationCanceledException)
         {
-            _logger.LogInformation(
-                "button_validate devolvió asistente de confirmación '{ResModel}' (ID: {WizardId}) para stock.picking {PickingId}. Procesando confirmación del asistente...",
-                resModel, wizardId, pickingId);
-
-            await ProcessWizardAsync(pickingId, resModel, wizardId, wizardContext, cancellationToken);
+            throw;
         }
-
-        // Asegurar que la entrega quede formalmente en estado 'done'
-        await EnsurePickingDoneAsync(pickingId, cancellationToken);
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Advertencia al validar entrega para stock.picking ID {PickingId}: {Message}", pickingId, ex.Message);
+        }
     }
 
     private async Task ProcessWizardAsync(
         int pickingId,
         string? resModel,
         int wizardId,
-        object wizardContext,
         CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(resModel))
@@ -927,48 +1021,106 @@ public class OdooService : IOdooService
             return;
         }
 
+        if (wizardId <= 0)
+        {
+            _logger.LogWarning("No se puede ejecutar process() en asistente '{ResModel}' para stock.picking {PickingId} porque res_id no es válido ({WizardId})", resModel, pickingId, wizardId);
+            return;
+        }
+
         try
         {
-            if (resModel == "stock.immediate.transfer")
+            if (string.Equals(resModel, "confirm.stock.sms", StringComparison.OrdinalIgnoreCase))
             {
-                if (wizardId > 0)
+                var smsPayload = new
                 {
-                    var immediatePayload = new Dictionary<string, object>
+                    ids = new[] { wizardId },
+                    context = new
                     {
-                        ["ids"] = new[] { wizardId },
-                        ["context"] = wizardContext
-                    };
-                    await CallJson2Async<JsonElement>("stock.immediate.transfer", "process", immediatePayload, cancellationToken);
-                    _logger.LogInformation("stock.immediate.transfer ID {WizardId} procesado exitosamente para picking {PickingId}", wizardId, pickingId);
-                }
-            }
-            else if (resModel == "stock.backorder.confirmation")
-            {
-                if (wizardId > 0)
-                {
-                    var backorderPayload = new Dictionary<string, object>
-                    {
-                        ["ids"] = new[] { wizardId },
-                        ["context"] = wizardContext
-                    };
-                    await CallJson2Async<JsonElement>("stock.backorder.confirmation", "process_cancel_backorder", backorderPayload, cancellationToken);
-                    _logger.LogInformation("stock.backorder.confirmation ID {WizardId} procesado con cancel_backorder para picking {PickingId}", wizardId, pickingId);
-                }
-            }
-            else if (wizardId > 0)
-            {
-                var genericPayload = new Dictionary<string, object>
-                {
-                    ["ids"] = new[] { wizardId },
-                    ["context"] = wizardContext
+                        button_validate_picking_ids = new[] { pickingId },
+                        skip_sms = true,
+                        skip_backorder = true
+                    }
                 };
-                await CallJson2Async<JsonElement>(resModel, "process", genericPayload, cancellationToken);
-                _logger.LogInformation("Asistente '{ResModel}' ID {WizardId} procesado exitosamente para picking {PickingId}", resModel, wizardId, pickingId);
+
+                await CallJson2Async<JsonElement>(resModel, "dont_send_sms", smsPayload, cancellationToken);
+                _logger.LogInformation("Método dont_send_sms() en '{ResModel}' ID {WizardId} ejecutado exitosamente para stock.picking {PickingId}", resModel, wizardId, pickingId);
+                return;
             }
+
+            var processPayload = new
+            {
+                ids = new[] { wizardId },
+                context = new
+                {
+                    button_validate_picking_ids = new[] { pickingId },
+                    skip_sms = true,
+                    skip_backorder = true
+                }
+            };
+
+            await CallJson2Async<JsonElement>(resModel, "process", processPayload, cancellationToken);
+            _logger.LogInformation("Método process() en '{ResModel}' ID {WizardId} ejecutado exitosamente para stock.picking {PickingId}", resModel, wizardId, pickingId);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Advertencia al procesar asistente '{ResModel}' para picking {PickingId}: {Message}", resModel, pickingId, ex.Message);
+            _logger.LogWarning(ex, "Advertencia al procesar asistente '{ResModel}' ID {WizardId} para picking {PickingId}: {Message}", resModel, wizardId, pickingId, ex.Message);
+
+            if (resModel == "stock.backorder.confirmation")
+            {
+                try
+                {
+                    var cancelBackorderPayload = new
+                    {
+                        ids = new[] { wizardId },
+                        context = new
+                        {
+                            button_validate_picking_ids = new[] { pickingId },
+                            skip_sms = true,
+                            skip_backorder = true
+                        }
+                    };
+                    await CallJson2Async<JsonElement>(resModel, "process_cancel_backorder", cancelBackorderPayload, cancellationToken);
+                    _logger.LogInformation("stock.backorder.confirmation ID {WizardId} procesado con cancel_backorder para picking {PickingId}", wizardId, pickingId);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogWarning(fallbackEx, "Fallback process_cancel_backorder en '{ResModel}' también falló: {Message}", resModel, fallbackEx.Message);
+                }
+            }
+            else if (string.Equals(resModel, "confirm.stock.sms", StringComparison.OrdinalIgnoreCase))
+            {
+                try
+                {
+                    var sendSmsPayload = new
+                    {
+                        ids = new[] { wizardId },
+                        context = new
+                        {
+                            button_validate_picking_ids = new[] { pickingId },
+                            skip_sms = true,
+                            skip_backorder = true
+                        }
+                    };
+                    await CallJson2Async<JsonElement>(resModel, "send_sms", sendSmsPayload, cancellationToken);
+                    _logger.LogInformation("confirm.stock.sms ID {WizardId} procesado con send_sms para picking {PickingId}", wizardId, pickingId);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception fallbackEx)
+                {
+                    _logger.LogWarning(fallbackEx, "Fallback send_sms en '{ResModel}' también falló: {Message}", resModel, fallbackEx.Message);
+                }
+            }
         }
     }
 
@@ -1004,26 +1156,46 @@ public class OdooService : IOdooService
             }
             else
             {
-                _logger.LogInformation("stock.picking ID {PickingId} se encuentra en estado '{State}'. Reintentando button_validate con bypass flags.", pickingId, finalState);
+                _logger.LogInformation("stock.picking ID {PickingId} se encuentra en estado '{State}' tras la validación. Reintentando button_validate con bypass completo...", pickingId, finalState);
 
-                var forcePayload = new Dictionary<string, object>
+                try
                 {
-                    ["ids"] = new[] { pickingId },
-                    ["context"] = new Dictionary<string, object>
+                    var retryPayload = new
                     {
-                        ["skip_immediate"] = true,
-                        ["skip_backorder"] = true,
-                        ["skip_sanity_check"] = true,
-                        ["button_validate_picking_ids"] = new[] { pickingId }
-                    }
-                };
+                        ids = new[] { pickingId },
+                        context = new
+                        {
+                            skip_immediate = true,
+                            skip_backorder = true,
+                            skip_sms = true,
+                            skip_sanity_check = true,
+                            button_validate_picking_ids = new[] { pickingId }
+                        }
+                    };
 
-                await CallJson2Async<JsonElement>("stock.picking", "button_validate", forcePayload, cancellationToken);
+                    await CallJson2Async<JsonElement>(
+                        "stock.picking",
+                        "button_validate",
+                        retryPayload,
+                        cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    throw;
+                }
+                catch (Exception retryEx)
+                {
+                    _logger.LogDebug(retryEx, "Reintento de button_validate para picking {PickingId} finalizó: {Message}", pickingId, retryEx.Message);
+                }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Advertencia al verificar o forzar estado 'done' en stock.picking {PickingId}: {Message}", pickingId, ex.Message);
+            _logger.LogWarning(ex, "Advertencia al verificar estado en stock.picking {PickingId}: {Message}", pickingId, ex.Message);
         }
     }
 
@@ -1057,9 +1229,16 @@ public class OdooService : IOdooService
                 resModel = modelProp.GetString();
             }
 
-            if (target.TryGetProperty("res_id", out var resIdProp) && resIdProp.ValueKind == JsonValueKind.Number)
+            if (target.TryGetProperty("res_id", out var resIdProp) && resIdProp.ValueKind == JsonValueKind.Number && resIdProp.TryGetInt32(out var id))
             {
-                wizardId = resIdProp.GetInt32();
+                wizardId = id;
+            }
+            else if (target.TryGetProperty("res_ids", out var resIdsProp) && resIdsProp.ValueKind == JsonValueKind.Array && resIdsProp.GetArrayLength() > 0)
+            {
+                if (resIdsProp[0].ValueKind == JsonValueKind.Number && resIdsProp[0].TryGetInt32(out var arrId))
+                {
+                    wizardId = arrId;
+                }
             }
 
             if (target.TryGetProperty("context", out var ctxProp) && ctxProp.ValueKind == JsonValueKind.Object)
@@ -1080,53 +1259,50 @@ public class OdooService : IOdooService
 
     public async Task<IReadOnlyList<OrderDto>> GetOrdersByCustomerAsync(int customerId, CancellationToken cancellationToken = default)
     {
-        var domain = new List<object>
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(8));
+
+        try
         {
-            new object[] { "partner_id", "=", customerId }
-        };
-
-        var payload = new
-        {
-            domain = domain,
-            fields = new[] { "id", "name", "partner_id", "date_order", "state", "amount_total", "order_line" },
-            order = "id desc",
-            limit = 50
-        };
-
-        var orders = await CallJson2Async<List<OdooOrderModel>>(
-            "sale.order",
-            "search_read",
-            payload,
-            cancellationToken) ?? new List<OdooOrderModel>();
-
-        var resultList = new List<OrderDto>();
-        foreach (var order in orders)
-        {
-            var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
-            List<OdooOrderLineModel> lines = new();
-
-            if (lineIds.Count > 0)
+            var domain = new List<object>
             {
-                var linePayload = new
+                new object[] { "partner_id", "=", customerId }
+            };
+
+            var payload = new
+            {
+                domain = domain,
+                fields = new[] { "id", "name", "date_order", "amount_total", "state", "order_line" },
+                order = "id desc",
+                limit = 50
+            };
+
+            var orders = await CallJson2Async<List<OdooOrderModel>>(
+                "sale.order",
+                "search_read",
+                payload,
+                cts.Token) ?? new List<OdooOrderModel>();
+
+            return orders.Select(order =>
+            {
+                var dto = OdooOrderMapper.ToDto(order);
+                if (dto.CustomerId <= 0 && customerId > 0)
                 {
-                    domain = new List<object>
-                    {
-                        new object[] { "id", "in", lineIds }
-                    },
-                    fields = new[] { "id", "order_id", "product_id", "name", "product_uom_qty", "price_unit", "price_subtotal" }
-                };
-
-                lines = await CallJson2Async<List<OdooOrderLineModel>>(
-                    "sale.order.line",
-                    "search_read",
-                    linePayload,
-                    cancellationToken) ?? new List<OdooOrderLineModel>();
-            }
-
-            resultList.Add(OdooOrderMapper.ToDto(order, lines));
+                    dto.CustomerId = customerId;
+                }
+                return dto;
+            }).ToList();
         }
+        catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning("La consulta de pedidos para el cliente ID {CustomerId} excedió el tiempo límite estricto de 8 segundos.", customerId);
+            throw new TimeoutException("La consulta de pedidos en Odoo excedió el tiempo límite de 8 segundos.", ex);
+        }
+    }
 
-        return resultList;
+    public Task<IReadOnlyList<OrderDto>> GetOrdersByPartnerAsync(int partnerId, CancellationToken cancellationToken = default)
+    {
+        return GetOrdersByCustomerAsync(partnerId, cancellationToken);
     }
 
     private async Task<OrderDto> FetchOrderDetailsAsync(int orderId, CancellationToken cancellationToken)
