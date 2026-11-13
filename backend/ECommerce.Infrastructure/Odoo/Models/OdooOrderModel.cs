@@ -21,7 +21,7 @@ public class OdooOrderModel
     public string State { get; set; } = string.Empty;
 
     [JsonPropertyName("amount_total")]
-    public decimal AmountTotal { get; set; }
+    public JsonElement AmountTotal { get; set; }
 
     [JsonPropertyName("order_line")]
     public JsonElement OrderLine { get; set; }
@@ -39,15 +39,15 @@ public class OdooOrderLineModel
     public JsonElement ProductId { get; set; }
 
     [JsonPropertyName("name")]
-    public string Name { get; set; } = string.Empty;
+    public JsonElement Name { get; set; }
 
     [JsonPropertyName("product_uom_qty")]
-    public decimal ProductUomQty { get; set; }
+    public JsonElement ProductUomQty { get; set; }
 
     [JsonPropertyName("price_unit")]
-    public decimal PriceUnit { get; set; }
+    public JsonElement PriceUnit { get; set; }
 
     [JsonPropertyName("price_subtotal")]
-    public decimal PriceSubtotal { get; set; }
+    public JsonElement PriceSubtotal { get; set; }
 }
 

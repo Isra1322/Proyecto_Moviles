@@ -73,6 +73,7 @@ public class ExceptionHandlingMiddleware
 
             default:
                 _logger.LogError(exception, "Excepción no controlada.");
+                message = $"Ocurrió un error interno en el servidor: {exception.Message} ({exception.GetType().FullName})";
                 break;
         }
 

@@ -46,22 +46,56 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 
   IconData _getCategoryIcon(String name) {
     final lower = name.toLowerCase();
-    if (lower.contains('ropa') || lower.contains('vest') || lower.contains('camisa')) {
-      return Icons.checkroom;
-    } else if (lower.contains('electr') || lower.contains('celul') || lower.contains('comp')) {
-      return Icons.devices;
-    } else if (lower.contains('hogar') || lower.contains('mueble') || lower.contains('casa')) {
-      return Icons.chair_outlined;
-    } else if (lower.contains('alimento') || lower.contains('comida') || lower.contains('bebida')) {
-      return Icons.restaurant;
-    } else if (lower.contains('deporte') || lower.contains('fitness')) {
-      return Icons.fitness_center;
-    } else if (lower.contains('libro') || lower.contains('papel')) {
-      return Icons.menu_book;
-    } else if (lower.contains('salud') || lower.contains('belleza')) {
-      return Icons.spa_outlined;
+    if (lower.contains('componente') ||
+        lower.contains('memoria') ||
+        lower.contains('ram') ||
+        lower.contains('disco') ||
+        lower.contains('procesador') ||
+        lower.contains('tarjeta') ||
+        lower.contains('placa') ||
+        lower.contains('fuente') ||
+        lower.contains('cooler')) {
+      return Icons.memory_rounded;
+    } else if (lower.contains('laptop') ||
+        lower.contains('comput') ||
+        lower.contains('portátil') ||
+        lower.contains('portatil') ||
+        lower.contains('notebook') ||
+        RegExp(r'\bpc\b').hasMatch(lower)) {
+      return Icons.laptop_mac_rounded;
+    } else if (lower.contains('teléfon') ||
+        lower.contains('telefon') ||
+        lower.contains('móvil') ||
+        lower.contains('movil') ||
+        lower.contains('celul') ||
+        lower.contains('smartphone') ||
+        lower.contains('phone')) {
+      return Icons.smartphone_rounded;
+    } else if (lower.contains('audio') ||
+        lower.contains('auricular') ||
+        lower.contains('audífon') ||
+        lower.contains('audifon') ||
+        lower.contains('headphone') ||
+        lower.contains('parlante') ||
+        lower.contains('altavoz') ||
+        lower.contains('sound') ||
+        lower.contains('speaker')) {
+      return Icons.headphones_rounded;
+    } else if (lower.contains('accesorio') ||
+        lower.contains('periféric') ||
+        lower.contains('periferic') ||
+        lower.contains('teclado') ||
+        lower.contains('mouse') ||
+        lower.contains('cables') ||
+        lower.contains('gadget')) {
+      return Icons.devices_other_rounded;
+    } else if (lower.contains('monitor') ||
+        lower.contains('pantalla') ||
+        lower.contains('display') ||
+        lower.contains('tv')) {
+      return Icons.monitor_rounded;
     }
-    return Icons.category_outlined;
+    return Icons.category_rounded;
   }
 
   @override
@@ -125,33 +159,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        // Grid de Categorías
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            crossAxisSpacing: 12,
-                            mainAxisSpacing: 12,
-                            childAspectRatio: 1.15,
-                          ),
-                          itemCount: categories.length,
-                          itemBuilder: (context, index) {
-                            final cat = categories[index];
-                            final count = productProvider.allProducts
-                                .where((p) => p.categoryId == cat.id)
-                                .length;
-                            final isSelected =
-                                productProvider.selectedCategoryId == cat.id;
+                        // Lista de Categorías
+                        ...categories.map((cat) {
+                          final count = productProvider.allProducts
+                              .where((p) => p.categoryId == cat.id)
+                              .length;
+                          final isSelected =
+                              productProvider.selectedCategoryId == cat.id;
 
-                            return _buildCategoryItemCard(
-                              category: cat,
-                              productCount: count,
-                              isSelected: isSelected,
-                            );
-                          },
-                        ),
+                          return _buildCategoryItemCard(
+                            category: cat,
+                            productCount: count,
+                            isSelected: isSelected,
+                          );
+                        }),
                       ],
                     ),
         ),
@@ -234,57 +255,73 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final icon = _getCategoryIcon(category.name);
 
     return Card(
+      margin: const EdgeInsets.only(bottom: 12),
       elevation: isSelected ? 2 : 1,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         side: BorderSide(
           color: isSelected ? AppColors.primary : AppColors.border,
           width: isSelected ? 2 : 1,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         onTap: () => _handleSelectCategory(category.id),
         child: Padding(
-          padding: const EdgeInsets.all(14.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+          child: Row(
             children: [
+              // Avatar circular con fondo tenue del color primario e icono centrado
               Container(
-                padding: const EdgeInsets.all(8),
+                width: 48,
+                height: 48,
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary.withAlpha(35)
-                      : AppColors.primary.withAlpha(15),
-                  borderRadius: BorderRadius.circular(10),
+                      : AppColors.primary.withAlpha(20),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  icon,
-                  color: AppColors.primary,
-                  size: 26,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                category.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                child: Center(
+                  child: Icon(
+                    icon,
+                    color: AppColors.primary,
+                    size: 26,
+                  ),
                 ),
               ),
-              const SizedBox(height: 2),
-              Text(
-                productCount > 0
-                    ? '$productCount producto(s)'
-                    : 'Ver productos',
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: AppColors.textSecondary,
+              const SizedBox(width: 16),
+              // Nombre en negrita y conteo de productos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      category.name,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      productCount > 0
+                          ? '$productCount producto${productCount == 1 ? '' : 's'} disponible${productCount == 1 ? '' : 's'}'
+                          : 'Explorar productos',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
+              ),
+              const SizedBox(width: 8),
+              // Flecha indicadora
+              Icon(
+                Icons.chevron_right,
+                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                size: 24,
               ),
             ],
           ),

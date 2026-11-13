@@ -41,4 +41,10 @@ class OrderRepositoryImpl implements IOrderRepository {
     final models = await _remoteDataSource.getOrdersByCustomer(customerId);
     return models.map<Order>(OrderMapper.toEntity).toList();
   }
+
+  @override
+  Future<Order> getOrderById(int orderId) async {
+    final model = await _remoteDataSource.getOrderById(orderId);
+    return OrderMapper.toEntity(model);
+  }
 }

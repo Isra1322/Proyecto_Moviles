@@ -16,6 +16,7 @@ class CustomTextField extends StatelessWidget {
   final int? maxLength;
   final String? counterText;
   final TextCapitalization textCapitalization;
+  final AutovalidateMode? autovalidateMode;
 
   const CustomTextField({
     super.key,
@@ -32,6 +33,7 @@ class CustomTextField extends StatelessWidget {
     this.maxLength,
     this.counterText,
     this.textCapitalization = TextCapitalization.none,
+    this.autovalidateMode,
   });
 
   @override
@@ -42,6 +44,7 @@ class CustomTextField extends StatelessWidget {
       keyboardType: keyboardType,
       enabled: enabled,
       validator: validator,
+      autovalidateMode: autovalidateMode,
       inputFormatters: inputFormatters,
       maxLength: maxLength,
       textCapitalization: textCapitalization,

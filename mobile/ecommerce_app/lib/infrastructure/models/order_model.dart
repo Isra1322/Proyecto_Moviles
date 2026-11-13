@@ -26,25 +26,46 @@ class OrderModel {
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
-    var rawItems = json['items'];
+    // 1. Extraer ítems de la orden (items, order_line, orderLines, lines)
+    var rawItems = json['items'] ?? json['order_line'] ?? json['orderLines'] ?? json['lines'];
     List<OrderItemModel> itemList = [];
     if (rawItems is List) {
-      itemList = rawItems
-          .whereType<Map<String, dynamic>>()
-          .map((item) => OrderItemModel.fromJson(item))
-          .toList();
+      for (final item in rawItems) {
+        if (item is Map) {
+          itemList.add(OrderItemModel.fromJson(Map<String, dynamic>.from(item)));
+        }
+      }
     }
+
+    // 2. Extraer Cliente (customerId y customerName)
+    int parsedCustomerId = (json['customerId'] as num?)?.toInt() ?? 0;
+    String parsedCustomerName = json['customerName'] as String? ?? '';
+
+    final rawPartner = json['partner_id'];
+    if (rawPartner is List && rawPartner.isNotEmpty) {
+      if (parsedCustomerId == 0 && rawPartner[0] is num) {
+        parsedCustomerId = (rawPartner[0] as num).toInt();
+      }
+      if (parsedCustomerName.isEmpty && rawPartner.length > 1 && rawPartner[1] != null) {
+        parsedCustomerName = rawPartner[1].toString();
+      }
+    }
+
+    // 3. Monto total (totalAmount, amount_total)
+    final double parsedTotalAmount = (json['totalAmount'] as num?)?.toDouble() ??
+        (json['amount_total'] as num?)?.toDouble() ??
+        0.0;
 
     return OrderModel(
       id: json['id'] as int? ?? 0,
       odooOrderId: json['odooOrderId'] as int?,
-      customerId: json['customerId'] as int? ?? 0,
-      customerName: json['customerName'] as String? ?? '',
+      customerId: parsedCustomerId,
+      customerName: parsedCustomerName,
       customerEmail: json['customerEmail'] as String?,
-      orderDate: json['orderDate'] as String? ?? '',
-      status: json['status'],
+      orderDate: json['orderDate'] as String? ?? json['date_order'] as String? ?? '',
+      status: json['status'] ?? json['state'],
       statusName: json['statusName'] as String?,
-      totalAmount: (json['totalAmount'] as num?)?.toDouble() ?? 0.0,
+      totalAmount: parsedTotalAmount,
       items: itemList,
     );
   }
@@ -64,4 +85,3 @@ class OrderModel {
     };
   }
 }
-

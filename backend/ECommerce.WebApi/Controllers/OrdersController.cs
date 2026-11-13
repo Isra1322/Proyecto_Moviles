@@ -3,6 +3,7 @@ namespace ECommerce.WebApi.Controllers;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ECommerce.Application.Common.Exceptions;
 using ECommerce.Application.Common.Models;
@@ -14,16 +15,28 @@ public class OrdersController : BaseApiController
 {
     private readonly CreateOrderUseCase _createOrderUseCase;
     private readonly GetOrdersUseCase _getOrdersUseCase;
+    private readonly GetOrderByIdUseCase? _getOrderByIdUseCase;
     private readonly ILogger<OrdersController> _logger;
+
+    [ActivatorUtilitiesConstructor]
+    public OrdersController(
+        CreateOrderUseCase createOrderUseCase,
+        GetOrdersUseCase getOrdersUseCase,
+        GetOrderByIdUseCase getOrderByIdUseCase,
+        ILogger<OrdersController> logger)
+    {
+        _createOrderUseCase = createOrderUseCase;
+        _getOrdersUseCase = getOrdersUseCase;
+        _getOrderByIdUseCase = getOrderByIdUseCase;
+        _logger = logger;
+    }
 
     public OrdersController(
         CreateOrderUseCase createOrderUseCase,
         GetOrdersUseCase getOrdersUseCase,
         ILogger<OrdersController> logger)
+        : this(createOrderUseCase, getOrdersUseCase, null!, logger)
     {
-        _createOrderUseCase = createOrderUseCase;
-        _getOrdersUseCase = getOrdersUseCase;
-        _logger = logger;
     }
 
     private int GetAuthenticatedPartnerId()
@@ -153,4 +166,81 @@ public class OrdersController : BaseApiController
     [NonAction]
     public Task<IActionResult> GetByCustomer([FromQuery] int? customerId, CancellationToken cancellationToken)
         => GetMyOrders(customerId, cancellationToken);
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(ApiResponse<OrderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status408RequestTimeout)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status502BadGateway)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> GetById(int id, CancellationToken cancellationToken)
+    {
+        if (id <= 0)
+        {
+            return BadRequest(ApiResponse<object>.Fail("El identificador del pedido debe ser mayor a cero."));
+        }
+
+        try
+        {
+            var authenticatedPartnerId = GetAuthenticatedPartnerId();
+
+            if (_getOrderByIdUseCase == null)
+            {
+                throw new InvalidOperationException("El servicio de consulta de pedidos por ID no está configurado.");
+            }
+
+            var order = await _getOrderByIdUseCase.ExecuteAsync(id, cancellationToken);
+
+            if (order == null)
+            {
+                return NotFound(ApiResponse<object>.Fail($"No se encontró el pedido con ID {id}."));
+            }
+
+            if (order.CustomerId > 0 && order.CustomerId != authenticatedPartnerId)
+            {
+                _logger.LogWarning("Intento de acceso no autorizado al pedido ID {OrderId} por el cliente ID {CustomerId}.", id, authenticatedPartnerId);
+                return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail("No tienes permiso para consultar este pedido."));
+            }
+
+            return Ok(ApiResponse<OrderDto>.Ok(order));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Acceso no autorizado al consultar pedido: {Message}", ex.Message);
+            return StatusCode(StatusCodes.Status401Unauthorized, ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Solicitud inválida al consultar pedido: {Message}", ex.Message);
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (NotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Pedido no encontrado: {Message}", ex.Message);
+            return NotFound(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (TimeoutException ex)
+        {
+            _logger.LogWarning(ex, "La consulta del pedido en Odoo excedió el tiempo límite.");
+            return StatusCode(StatusCodes.Status408RequestTimeout, ApiResponse<object>.Fail("La consulta del pedido tardó demasiado tiempo y se canceló la conexión."));
+        }
+        catch (OperationCanceledException ex)
+        {
+            _logger.LogWarning(ex, "La consulta del pedido fue cancelada o superó el tiempo límite.");
+            return StatusCode(StatusCodes.Status408RequestTimeout, ApiResponse<object>.Fail("La consulta del pedido tardó demasiado tiempo y se canceló la conexión."));
+        }
+        catch (OdooIntegrationException ex)
+        {
+            _logger.LogError(ex, "Error de integración con Odoo al consultar pedido: {Message}", ex.Message);
+            return StatusCode(StatusCodes.Status502BadGateway, ApiResponse<object>.Fail($"Error en el servidor de Odoo: {ex.Message}"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error no controlado al consultar pedido: {Message}", ex.Message);
+            return StatusCode(StatusCodes.Status500InternalServerError, ApiResponse<object>.Fail($"Error interno al consultar pedido: {ex.Message}"));
+        }
+    }
 }

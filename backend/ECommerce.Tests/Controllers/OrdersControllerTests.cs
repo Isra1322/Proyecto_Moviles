@@ -4,6 +4,7 @@ using System.Security.Claims;
 using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Moq;
 using ECommerce.Application.Common.Exceptions;
@@ -232,5 +233,107 @@ public class OrdersControllerTests
         var apiResponse = objResult.Value as ApiResponse<object>;
         apiResponse.Should().NotBeNull();
         apiResponse!.Success.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetById_WhenValidAndBelongsToUser_Returns200OkWithPopulatedLines()
+    {
+        // Arrange
+        var getOrderByIdUseCase = new GetOrderByIdUseCase(_odooServiceMock.Object);
+        var controller = new OrdersController(
+            new CreateOrderUseCase(_odooServiceMock.Object),
+            new GetOrdersUseCase(_odooServiceMock.Object),
+            getOrderByIdUseCase,
+            _loggerMock.Object)
+        {
+            ControllerContext = _controller.ControllerContext
+        };
+
+        var order = new OrderDto
+        {
+            Id = 26,
+            CustomerId = 7,
+            Status = OrderStatus.Confirmed,
+            TotalAmount = 100m,
+            Items = new List<OrderItemDto>
+            {
+                new OrderLineDto
+                {
+                    Id = 1,
+                    ProductId = 10,
+                    ProductName = "Monitor Dell 27\"",
+                    Quantity = 2,
+                    UnitPrice = 50m,
+                    Subtotal = 100m
+                }
+            }
+        };
+
+        _odooServiceMock
+            .Setup(s => s.GetOrderByIdAsync(26, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(order);
+
+        // Act
+        var result = await controller.GetById(26, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<OkObjectResult>();
+        var okResult = (OkObjectResult)result;
+        var apiResponse = okResult.Value as ApiResponse<OrderDto>;
+        apiResponse.Should().NotBeNull();
+        apiResponse!.Success.Should().BeTrue();
+        apiResponse.Data!.Id.Should().Be(26);
+        apiResponse.Data.Items.Should().HaveCount(1);
+        apiResponse.Data.Items[0].ProductName.Should().Be("Monitor Dell 27\"");
+        apiResponse.Data.Items[0].UnitPrice.Should().Be(50m);
+    }
+
+    [Fact]
+    public async Task GetById_WhenOrderBelongsToOtherUser_Returns403Forbidden()
+    {
+        // Arrange
+        var getOrderByIdUseCase = new GetOrderByIdUseCase(_odooServiceMock.Object);
+        var controller = new OrdersController(
+            new CreateOrderUseCase(_odooServiceMock.Object),
+            new GetOrdersUseCase(_odooServiceMock.Object),
+            getOrderByIdUseCase,
+            _loggerMock.Object)
+        {
+            ControllerContext = _controller.ControllerContext
+        };
+
+        var order = new OrderDto
+        {
+            Id = 26,
+            CustomerId = 999, // Otro cliente diferente a 7
+            Status = OrderStatus.Confirmed
+        };
+
+        _odooServiceMock
+            .Setup(s => s.GetOrderByIdAsync(26, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(order);
+
+        // Act
+        var result = await controller.GetById(26, CancellationToken.None);
+
+        // Assert
+        result.Should().BeOfType<ObjectResult>();
+        var objResult = (ObjectResult)result;
+        objResult.StatusCode.Should().Be(StatusCodes.Status403Forbidden);
+    }
+
+    [Fact]
+    public void OrdersController_CanBeActivatedByDI()
+    {
+        var services = new Microsoft.Extensions.DependencyInjection.ServiceCollection();
+        services.AddLogging();
+        services.AddScoped(_ => _odooServiceMock.Object);
+        services.AddScoped<CreateOrderUseCase>();
+        services.AddScoped<GetOrdersUseCase>();
+        services.AddScoped<GetOrderByIdUseCase>();
+
+        var sp = services.BuildServiceProvider();
+        var act = () => Microsoft.Extensions.DependencyInjection.ActivatorUtilities.CreateInstance<OrdersController>(sp);
+        act.Should().NotThrow();
     }
 }

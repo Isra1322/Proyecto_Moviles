@@ -3,13 +3,19 @@ import 'package:ecommerce_app/domain/entities/cart.dart';
 import 'package:ecommerce_app/domain/entities/order.dart';
 import 'package:ecommerce_app/application/use_cases/orders/create_order_use_case.dart';
 import 'package:ecommerce_app/application/use_cases/orders/get_orders_use_case.dart';
+import 'package:ecommerce_app/application/use_cases/orders/get_order_by_id_use_case.dart';
 import 'auth_provider.dart';
 
 class OrderProvider extends ChangeNotifier {
   final CreateOrderUseCase _createOrderUseCase;
   final GetOrdersUseCase _getOrdersUseCase;
+  final GetOrderByIdUseCase? _getOrderByIdUseCase;
 
-  OrderProvider(this._createOrderUseCase, this._getOrdersUseCase);
+  OrderProvider(
+    this._createOrderUseCase,
+    this._getOrdersUseCase, [
+    this._getOrderByIdUseCase,
+  ]);
 
   ViewStatus _status = ViewStatus.initial;
   ViewStatus _createStatus = ViewStatus.initial;
@@ -64,6 +70,22 @@ class OrderProvider extends ChangeNotifier {
       _status = ViewStatus.error;
     }
     notifyListeners();
+  }
+
+  Future<Order?> getOrderById(int orderId) async {
+    final useCase = _getOrderByIdUseCase;
+    if (useCase == null) return null;
+    try {
+      final order = await useCase.execute(orderId);
+      final index = _orders.indexWhere((o) => o.id == orderId);
+      if (index != -1) {
+        _orders[index] = order;
+      }
+      notifyListeners();
+      return order;
+    } catch (e) {
+      return null;
+    }
   }
 
   void resetCreateStatus() {

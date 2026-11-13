@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:ecommerce_app/core/constants/app_colors.dart';
+import '../../../core/utils/email_input_formatter.dart';
+export '../../../core/utils/email_input_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
@@ -56,58 +58,6 @@ class FullNameInputFormatter extends TextInputFormatter {
         extentOffset: extentOffset,
       ),
     );
-  }
-}
-
-/// Formateador para el campo "Correo Electrónico":
-/// - No permitir ingresar ningún espacio en blanco.
-/// - Permitir únicamente letras, números y los caracteres especiales: @, _, -, .
-///   Bloquear cualquier otro símbolo.
-/// - No permitir escribir dos caracteres especiales iguales de forma consecutiva (ej: ---, ..., ___, @@).
-/// - Si el texto ya contiene .com (o .net, .org, .ec), bloquea la escritura de un punto '.' adicional inmediatamente después o al final.
-class EmailInputFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    if (newValue.text.isEmpty) {
-      return newValue;
-    }
-
-    // No permitir ningún espacio en blanco
-    if (newValue.text.contains(RegExp(r'\s'))) {
-      return oldValue;
-    }
-
-    // Permitir únicamente letras, números y los caracteres especiales: @, _, -, .
-    if (!RegExp(r'^[a-zA-Z0-9@_.-]+$').hasMatch(newValue.text)) {
-      return oldValue;
-    }
-
-    // No permitir escribir dos caracteres especiales iguales de forma consecutiva
-    if (RegExp(r'([@_.-])\1').hasMatch(newValue.text)) {
-      return oldValue;
-    }
-
-    final lower = newValue.text.toLowerCase();
-
-    // Bloquea punto inmediatamente después de .com, .net, .org, .ec (ej: .com.)
-    if (RegExp(r'\.(com|net|org|ec)\.').hasMatch(lower)) {
-      return oldValue;
-    }
-
-    // Si el texto ya contiene .com (o .net, .org, .ec), bloquea la escritura de un punto adicional al final
-    if (lower.endsWith('.')) {
-      if (lower.contains('.com') ||
-          lower.contains('.net') ||
-          lower.contains('.org') ||
-          lower.contains('.ec')) {
-        return oldValue;
-      }
-    }
-
-    return newValue;
   }
 }
 
@@ -273,28 +223,34 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     prefixIcon: Icons.email_outlined,
-                    maxLength: 30,
+                    maxLength: 40,
                     counterText: '',
                     inputFormatters: [
+                      LowerCaseTextFormatter(),
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9._@]')),
+                      LengthLimitingTextInputFormatter(40),
                       EmailInputFormatter(),
                     ],
                     validator: (val) {
                       if (val == null || val.trim().isEmpty) {
-                        return 'El correo electrónico es obligatorio.';
+                        return 'Por favor, ingresa tu correo electrónico';
                       }
-                      final trimmed = val.trim();
-                      // Rechaza explícitamente cualquier correo que finalice con un punto '.'
-                      if (trimmed.endsWith('.')) {
-                        return 'El correo no puede terminar con un punto.';
+                      final trimmed = val.trim().toLowerCase();
+                      if (trimmed.startsWith('.') || trimmed.startsWith('_') || trimmed.startsWith('@')) {
+                        return 'Ingresa un correo electrónico válido';
                       }
-                      // Rechaza explícitamente secuencias como .com., .net., .org., .ec. o dobles puntos
-                      if (RegExp(r'\.(com|net|org|ec)\.', caseSensitive: false).hasMatch(trimmed) || trimmed.contains('..')) {
-                        return 'El correo no debe contener puntos después de la extensión (ej: .com.).';
+                      if (trimmed.endsWith('.') || trimmed.endsWith('_') || trimmed.endsWith('@')) {
+                        return 'Ingresa un correo electrónico válido';
                       }
-                      // Expresión regular estricta que exige terminar en un dominio alfanumérico válido ([a-zA-Z]{2,})
-                      final strictEmailRegex = RegExp(r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-                      if (!strictEmailRegex.hasMatch(trimmed)) {
-                        return 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).';
+                      if (RegExp(r'[._@]{2}').hasMatch(trimmed)) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      if ('@'.allMatches(trimmed).length != 1) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      final emailRegex = RegExp(r'^[a-z0-9]+([._][a-z0-9]+)*@[a-z0-9]+(\.[a-z0-9]+)*\.[a-z]{2,}$');
+                      if (!emailRegex.hasMatch(trimmed)) {
+                        return 'Ingresa un correo electrónico válido';
                       }
                       return null;
                     },

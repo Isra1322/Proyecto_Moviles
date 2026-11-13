@@ -6,13 +6,22 @@ import '../models/order_item_model.dart';
 
 class OrderMapper {
   static OrderItem toItemEntity(OrderItemModel model) {
+    final double quantity = model.quantity > 0 ? model.quantity : 1.0;
+    final double computedSubtotal = model.subtotal > 0
+        ? model.subtotal
+        : (quantity * model.unitPrice);
+
+    final String displayName = model.productName.trim().isNotEmpty
+        ? model.productName.trim()
+        : (model.productId > 0 ? 'Producto #${model.productId}' : 'Producto');
+
     return OrderItem(
       id: model.id,
       productId: model.productId,
-      productName: model.productName,
-      quantity: model.quantity,
+      productName: displayName,
+      quantity: quantity,
       unitPrice: model.unitPrice,
-      subtotal: model.subtotal,
+      subtotal: computedSubtotal,
     );
   }
 
@@ -33,4 +42,3 @@ class OrderMapper {
     );
   }
 }
-

@@ -29,6 +29,9 @@ import 'package:ecommerce_app/application/use_cases/cart/update_cart_quantity_us
 import 'package:ecommerce_app/application/use_cases/cart/remove_from_cart_use_case.dart';
 import 'package:ecommerce_app/application/use_cases/cart/clear_cart_use_case.dart';
 
+import 'package:ecommerce_app/infrastructure/models/order_model.dart';
+import 'package:ecommerce_app/infrastructure/models/order_item_model.dart';
+
 import 'package:ecommerce_app/presentation/providers/auth_provider.dart';
 import 'package:ecommerce_app/presentation/providers/cart_provider.dart';
 import 'package:ecommerce_app/presentation/providers/order_provider.dart';
@@ -77,6 +80,10 @@ class FakeOrderRepo implements IOrderRepository {
 
   @override
   Future<List<Order>> getOrdersByCustomer(int customerId) async => orders;
+
+  @override
+  Future<Order> getOrderById(int orderId) async =>
+      orders.firstWhere((o) => o.id == orderId, orElse: () => throw Exception('Order not found'));
 }
 
 class FakeAuthRepo implements IAuthRepository {
@@ -195,6 +202,53 @@ void main() {
     });
   });
 
+  group('OrderItemModel & OrderModel Parsing Tests', () {
+    test('Parsea correctamente tupla Many2One de Odoo product_id: [id, "Nombre"] y campos Odoo', () {
+      final odooJson = {
+        'id': 15,
+        'product_id': [42, 'ASUS ROG Zephyrus G14'],
+        'product_uom_qty': 2.0,
+        'price_unit': 1450.0,
+        'price_subtotal': 2900.0,
+      };
+
+      final item = OrderItemModel.fromJson(odooJson);
+      expect(item.id, 15);
+      expect(item.productId, 42);
+      expect(item.productName, 'ASUS ROG Zephyrus G14');
+      expect(item.quantity, 2.0);
+      expect(item.unitPrice, 1450.0);
+      expect(item.subtotal, 2900.0);
+    });
+
+    test('Parsea correctamente OrderModel con partner_id: [id, "Nombre"] y order_line', () {
+      final odooOrderJson = {
+        'id': 100,
+        'partner_id': [7, 'Carlos Mendoza'],
+        'date_order': '2026-11-12 18:00:00',
+        'amount_total': 2900.0,
+        'state': 'sale',
+        'order_line': [
+          {
+            'id': 15,
+            'product_id': [42, 'ASUS ROG Zephyrus G14'],
+            'product_uom_qty': 2.0,
+            'price_unit': 1450.0,
+            'price_subtotal': 2900.0,
+          }
+        ]
+      };
+
+      final orderModel = OrderModel.fromJson(odooOrderJson);
+      expect(orderModel.id, 100);
+      expect(orderModel.customerId, 7);
+      expect(orderModel.customerName, 'Carlos Mendoza');
+      expect(orderModel.totalAmount, 2900.0);
+      expect(orderModel.items.length, 1);
+      expect(orderModel.items.first.productName, 'ASUS ROG Zephyrus G14');
+    });
+  });
+
   group('OrderDetailScreen Tests', () {
     final sampleOrder = Order(
       id: 999,
@@ -230,7 +284,8 @@ void main() {
 
       // Producto
       expect(find.text('Zapatos Deportivos'), findsOneWidget);
-      expect(find.text('Cantidad: 2'), findsOneWidget);
+      expect(find.text('x2 uds'), findsOneWidget);
+      expect(find.text('${CurrencyFormatter.format(50.0)} c/u'), findsOneWidget);
       expect(find.text('Subtotal'), findsWidgets);
 
       // Desglose Financiero

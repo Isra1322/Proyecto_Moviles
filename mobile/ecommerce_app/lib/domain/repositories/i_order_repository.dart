@@ -10,5 +10,7 @@ abstract class IOrderRepository {
   });
 
   Future<List<Order>> getOrdersByCustomer(int customerId);
+
+  Future<Order> getOrderById(int orderId);
 }
 

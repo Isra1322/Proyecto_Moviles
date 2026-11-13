@@ -270,7 +270,7 @@ public class OdooServiceOrderTests
                 {
                     capturedRequestBody = await req.Content.ReadAsStringAsync(ct);
                 }
-                return JsonResponse("[{\"id\": 10, \"name\": \"SO010\", \"date_order\": \"2026-11-12\", \"amount_total\": 100.0, \"state\": \"sale\", \"order_line\": [1, 2]}, {\"id\": 11, \"name\": \"SO011\", \"date_order\": \"2026-11-12\", \"amount_total\": 50.0, \"state\": \"draft\", \"order_line\": [3]}]");
+                return JsonResponse("[{\"id\": 10, \"name\": \"SO010\", \"date_order\": \"2026-11-12\", \"amount_total\": 100.0, \"state\": \"sale\"}, {\"id\": 11, \"name\": \"SO011\", \"date_order\": \"2026-11-12\", \"amount_total\": 50.0, \"state\": \"draft\"}]");
             });
 
         var httpClient = new HttpClient(handlerMock.Object);
@@ -289,7 +289,8 @@ public class OdooServiceOrderTests
         var fieldsProp = doc.RootElement.GetProperty("fields");
         var fields = fieldsProp.EnumerateArray().Select(f => f.GetString()).ToList();
 
-        fields.Should().BeEquivalentTo(new[] { "id", "name", "date_order", "amount_total", "state", "order_line" });
+        // Estricto: NO traer ni mapear sale.order.line en el listado general
+        fields.Should().BeEquivalentTo(new[] { "id", "name", "date_order", "amount_total", "state" });
 
         // Assert results
         result.Should().HaveCount(2);
@@ -297,13 +298,13 @@ public class OdooServiceOrderTests
         result[0].CustomerId.Should().Be(7);
         result[0].Status.Should().Be(OrderStatus.Confirmed);
         result[0].TotalAmount.Should().Be(100.0m);
-        result[0].Items.Should().HaveCount(2);
+        result[0].Items.Should().BeEmpty();
 
         result[1].Id.Should().Be(11);
         result[1].CustomerId.Should().Be(7);
         result[1].Status.Should().Be(OrderStatus.Draft);
         result[1].TotalAmount.Should().Be(50.0m);
-        result[1].Items.Should().HaveCount(1);
+        result[1].Items.Should().BeEmpty();
     }
 
     [Fact]
@@ -536,5 +537,130 @@ public class OdooServiceOrderTests
 
         var urls = sentRequests.Select(r => r.RequestUri?.AbsolutePath).ToList();
         urls.Should().Contain("/json/2/confirm.stock.sms/dont_send_sms");
+    }
+
+    [Fact]
+    public async Task GetOrderByIdAsync_QueriesSaleOrderAndLines_MapsFieldsCorrectly()
+    {
+        // Arrange
+        var capturedBodies = new List<string>();
+        var (service, sentRequests) = CreateServiceWithResponses(
+            // 1. sale.order/search_read
+            JsonResponse("[{\"id\": 26, \"name\": \"SO026\", \"partner_id\": [7, \"Sebastián Andrade\"], \"date_order\": \"2026-11-13\", \"state\": \"sale\", \"amount_total\": 115.0, \"order_line\": [101, 102]}]"),
+            // 2. sale.order.line/search_read
+            JsonResponse("[{\"id\": 101, \"product_id\": [15, \"Laptop Dell XPS\"], \"name\": \"Laptop Dell\", \"product_uom_qty\": 2.0, \"price_unit\": 50.0, \"price_subtotal\": 100.0}, {\"id\": 102, \"product_id\": false, \"name\": \"Servicio de Entrega\", \"product_uom_qty\": 1.0, \"price_unit\": 15.0, \"price_subtotal\": 15.0}]")
+        );
+
+        // Act
+        var result = await service.GetOrderByIdAsync(26);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Id.Should().Be(26);
+        result.CustomerId.Should().Be(7);
+        result.CustomerName.Should().Be("Sebastián Andrade");
+        result.Status.Should().Be(OrderStatus.Confirmed);
+        result.TotalAmount.Should().Be(115.0m);
+
+        sentRequests.Should().HaveCount(2);
+        sentRequests[0].RequestUri?.AbsolutePath.Should().EndWith("/json/2/sale.order/search_read");
+        sentRequests[1].RequestUri?.AbsolutePath.Should().EndWith("/json/2/sale.order.line/search_read");
+
+        result.Items.Should().HaveCount(2);
+
+        // Item 1: tuple Many2One [15, "Laptop Dell XPS"]
+        result.Items[0].Id.Should().Be(101);
+        result.Items[0].ProductId.Should().Be(15);
+        result.Items[0].ProductName.Should().Be("Laptop Dell XPS");
+        result.Items[0].Quantity.Should().Be(2.0m);
+        result.Items[0].UnitPrice.Should().Be(50.0m);
+        result.Items[0].Subtotal.Should().Be(100.0m);
+
+        // Item 2: fallback to name "Servicio de Entrega"
+        result.Items[1].Id.Should().Be(102);
+        result.Items[1].ProductId.Should().Be(0);
+        result.Items[1].ProductName.Should().Be("Servicio de Entrega");
+        result.Items[1].Quantity.Should().Be(1.0m);
+        result.Items[1].UnitPrice.Should().Be(15.0m);
+        result.Items[1].Subtotal.Should().Be(15.0m);
+    }
+
+    [Fact]
+    public async Task GetOrdersByCustomerAsync_WithComplexOrMissingAmountTotal_MapsDefensivelyWithout500()
+    {
+        // Arrange: Odoo returns heterogeneous types for amount_total (e.g. float, string, boolean false, null)
+        var (service, _) = CreateServiceWithResponses(
+            JsonResponse("[{\"id\": 1, \"name\": \"SO001\", \"date_order\": \"2026-11-13\", \"amount_total\": \"120.50\", \"state\": \"sale\"}, {\"id\": 2, \"name\": \"SO002\", \"date_order\": false, \"amount_total\": false, \"state\": \"draft\"}, {\"id\": 3, \"name\": \"SO003\", \"date_order\": \"2026-11-13\", \"amount_total\": null, \"state\": \"sale\"}]")
+        );
+
+        // Act
+        var result = await service.GetOrdersByCustomerAsync(7);
+
+        // Assert
+        result.Should().HaveCount(3);
+        result[0].TotalAmount.Should().Be(120.50m);
+        result[0].AmountTotal.Should().Be(120.50m);
+        result[0].Status.Should().Be(OrderStatus.Confirmed);
+        result[0].Items.Should().BeEmpty();
+
+        result[1].TotalAmount.Should().Be(0m);
+        result[1].AmountTotal.Should().Be(0m);
+        result[1].Status.Should().Be(OrderStatus.Draft);
+        result[1].Items.Should().BeEmpty();
+
+        result[2].TotalAmount.Should().Be(0m);
+        result[2].AmountTotal.Should().Be(0m);
+        result[2].Status.Should().Be(OrderStatus.Confirmed);
+        result[2].Items.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task GetOrderByIdAsync_WithHeterogeneousLineTypes_MapsAllFieldsDefensively()
+    {
+        // Arrange
+        var (service, _) = CreateServiceWithResponses(
+            // 1. sale.order
+            JsonResponse("[{\"id\": 50, \"name\": \"SO050\", \"partner_id\": [7, \"Sebastián\"], \"date_order\": \"2026-11-13\", \"state\": \"sale\", \"amount_total\": 200.0, \"order_line\": [1, 2, 3]}]"),
+            // 2. sale.order.line with various heterogeneous types (strings, null, false, single int product_id)
+            JsonResponse("[" +
+                "{\"id\": 1, \"product_id\": [42, \"Teclado RGB\"], \"name\": \"Teclado\", \"product_uom_qty\": \"3.0\", \"price_unit\": 45.0, \"price_subtotal\": 135.0}," +
+                "{\"id\": 2, \"product_id\": 50, \"name\": \"Mouse Gamer\", \"product_uom_qty\": 2.0, \"price_unit\": null, \"price_subtotal\": false}," +
+                "{\"id\": 3, \"product_id\": false, \"name\": false, \"product_uom_qty\": false, \"price_unit\": false, \"price_subtotal\": false}" +
+            "]")
+        );
+
+        // Act
+        var result = await service.GetOrderByIdAsync(50);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Id.Should().Be(50);
+        result.TotalAmount.Should().Be(200.0m);
+        result.AmountTotal.Should().Be(200.0m);
+        result.Items.Should().HaveCount(3);
+
+        // Line 1: string quantity "3.0" parsed safely via Convert.ToDecimal
+        result.Items[0].Id.Should().Be(1);
+        result.Items[0].ProductId.Should().Be(42);
+        result.Items[0].ProductName.Should().Be("Teclado RGB");
+        result.Items[0].Quantity.Should().Be(3.0m);
+        result.Items[0].UnitPrice.Should().Be(45.0m);
+        result.Items[0].Subtotal.Should().Be(135.0m);
+
+        // Line 2: single int product_id, fallback to name, price_unit null fallback to 0
+        result.Items[1].Id.Should().Be(2);
+        result.Items[1].ProductId.Should().Be(50);
+        result.Items[1].ProductName.Should().Be("Mouse Gamer");
+        result.Items[1].Quantity.Should().Be(2.0m);
+        result.Items[1].UnitPrice.Should().Be(0m);
+        result.Items[1].Subtotal.Should().Be(0m);
+
+        // Line 3: false product_id and false name -> fallback to "Producto", 0 quantity and 0 price
+        result.Items[2].Id.Should().Be(3);
+        result.Items[2].ProductId.Should().Be(0);
+        result.Items[2].ProductName.Should().Be("Producto");
+        result.Items[2].Quantity.Should().Be(0m);
+        result.Items[2].UnitPrice.Should().Be(0m);
+        result.Items[2].Subtotal.Should().Be(0m);
     }
 }

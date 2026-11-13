@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddScoped<GetCategoriesUseCase>();
         services.AddScoped<CreateOrderUseCase>();
         services.AddScoped<GetOrdersUseCase>();
+        services.AddScoped<GetOrderByIdUseCase>();
 
         return services;
     }

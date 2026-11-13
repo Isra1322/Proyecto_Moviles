@@ -38,6 +38,10 @@ class FakeOrderRepository implements IOrderRepository {
 
   @override
   Future<List<Order>> getOrdersByCustomer(int customerId) async => _orders;
+
+  @override
+  Future<Order> getOrderById(int orderId) async =>
+      _orders.firstWhere((o) => o.id == orderId, orElse: () => throw Exception('Order not found'));
 }
 
 class FakeAuthRepository implements IAuthRepository {

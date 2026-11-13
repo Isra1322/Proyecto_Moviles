@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:ecommerce_app/core/constants/app_colors.dart';
+import '../../../core/utils/email_input_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
@@ -15,22 +17,29 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  AutovalidateMode _autovalidateMode = AutovalidateMode.disabled;
 
   @override
   void dispose() {
-    _usernameController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
+    setState(() {
+      _autovalidateMode = AutovalidateMode.onUserInteraction;
+    });
+
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final success = await context.read<AuthProvider>().login(
-          _usernameController.text.trim(),
+          _emailController.text.trim(),
           _passwordController.text.trim(),
         );
 
@@ -54,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.all(28.0),
             child: Form(
               key: _formKey,
+              autovalidateMode: _autovalidateMode,
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -87,15 +97,44 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 36),
                   // Campo de usuario/correo
                   CustomTextField(
-                    controller: _usernameController,
+                    controller: _emailController,
                     label: 'Correo electrónico',
-                    hint: 's3bastian41@gmail.com',
+                    hint: 'ejemplo@correo.com',
                     prefixIcon: Icons.email_outlined,
                     keyboardType: TextInputType.emailAddress,
                     enabled: !authProvider.isLoading,
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Por favor ingresa tu correo'
-                        : null,
+                    autovalidateMode: _autovalidateMode,
+                    maxLength: 40,
+                    counterText: '',
+                    inputFormatters: [
+                      LowerCaseTextFormatter(),
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-z0-9._@]')),
+                      LengthLimitingTextInputFormatter(40),
+                      EmailInputFormatter(),
+                    ],
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Por favor, ingresa tu correo electrónico';
+                      }
+                      final trimmed = val.trim().toLowerCase();
+                      if (trimmed.startsWith('.') || trimmed.startsWith('_') || trimmed.startsWith('@')) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      if (trimmed.endsWith('.') || trimmed.endsWith('_') || trimmed.endsWith('@')) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      if (RegExp(r'[._@]{2}').hasMatch(trimmed)) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      if ('@'.allMatches(trimmed).length != 1) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      final emailRegex = RegExp(r'^[a-z0-9]+([._][a-z0-9]+)*@[a-z0-9]+(\.[a-z0-9]+)*\.[a-z]{2,}$');
+                      if (!emailRegex.hasMatch(trimmed)) {
+                        return 'Ingresa un correo electrónico válido';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 16),
                   // Campo de contraseña
@@ -105,16 +144,21 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: Icons.lock_outline,
                     obscureText: _obscurePassword,
                     enabled: !authProvider.isLoading,
+                    autovalidateMode: _autovalidateMode,
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
                         color: AppColors.textSecondary,
+                        size: 20,
                       ),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
-                    validator: (v) => (v == null || v.trim().isEmpty)
-                        ? 'Por favor ingresa tu contraseña'
-                        : null,
+                    validator: (val) {
+                      if (val == null || val.trim().isEmpty) {
+                        return 'Por favor, ingresa tu contraseña';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 12),
                   // Mensaje de error de autenticación

@@ -81,14 +81,14 @@ void main() {
       expect(result.text, 'carlos');
     });
 
-    test('Permite únicamente letras, números y @, _, -, .', () {
+    test('Permite únicamente letras, números y @, _, .', () {
       const oldValue = TextEditingValue.empty;
       const validValue = TextEditingValue(
-        text: 'carlos.m_1-2@correo.com',
-        selection: TextSelection.collapsed(offset: 23),
+        text: 'carlos.m_12@correo.com',
+        selection: TextSelection.collapsed(offset: 22),
       );
       final result = formatter.formatEditUpdate(oldValue, validValue);
-      expect(result.text, 'carlos.m_1-2@correo.com');
+      expect(result.text, 'carlos.m_12@correo.com');
 
       // Intento de símbolo no permitido (ej: !)
       const invalidValue = TextEditingValue(
@@ -99,7 +99,7 @@ void main() {
       expect(invalidResult.text, '');
     });
 
-    test('Bloquea caracteres especiales iguales consecutivos (--, .., __, @@)', () {
+    test('Bloquea caracteres especiales iguales consecutivos y combinados (.., __, @@, ._, .@, etc.)', () {
       // @@
       const oldValueAt = TextEditingValue(text: 'user@', selection: TextSelection.collapsed(offset: 5));
       const newValueAt = TextEditingValue(text: 'user@@', selection: TextSelection.collapsed(offset: 6));
@@ -110,10 +110,10 @@ void main() {
       const newValueDot = TextEditingValue(text: 'user..', selection: TextSelection.collapsed(offset: 6));
       expect(formatter.formatEditUpdate(oldValueDot, newValueDot).text, 'user.');
 
-      // --
-      const oldValueDash = TextEditingValue(text: 'user-', selection: TextSelection.collapsed(offset: 5));
-      const newValueDash = TextEditingValue(text: 'user--', selection: TextSelection.collapsed(offset: 6));
-      expect(formatter.formatEditUpdate(oldValueDash, newValueDash).text, 'user-');
+      // ._
+      const oldValueDotUnder = TextEditingValue(text: 'user.', selection: TextSelection.collapsed(offset: 5));
+      const newValueDotUnder = TextEditingValue(text: 'user._', selection: TextSelection.collapsed(offset: 6));
+      expect(formatter.formatEditUpdate(oldValueDotUnder, newValueDotUnder).text, 'user.');
 
       // __
       const oldValueUnder = TextEditingValue(text: 'user_', selection: TextSelection.collapsed(offset: 5));
@@ -121,26 +121,24 @@ void main() {
       expect(formatter.formatEditUpdate(oldValueUnder, newValueUnder).text, 'user_');
     });
 
-    test('Bloquea punto inmediatamente después o al final si contiene .com, .net, .org, .ec', () {
+    test('Convierte automáticamente a minúsculas', () {
+      const oldValue = TextEditingValue.empty;
+      const newValue = TextEditingValue(
+        text: 'CARLOS@GMAIL.COM',
+        selection: TextSelection.collapsed(offset: 16),
+      );
+      final result = formatter.formatEditUpdate(oldValue, newValue);
+      expect(result.text, 'carlos@gmail.com');
+    });
+
+    test('Bloquea cualquier ingreso después de .com', () {
       // Tras .com
       const valCom = TextEditingValue(text: 'carlos@mail.com', selection: TextSelection.collapsed(offset: 15));
       const valComDot = TextEditingValue(text: 'carlos@mail.com.', selection: TextSelection.collapsed(offset: 16));
       expect(formatter.formatEditUpdate(valCom, valComDot).text, 'carlos@mail.com');
 
-      // Tras .net
-      const valNet = TextEditingValue(text: 'carlos@mail.net', selection: TextSelection.collapsed(offset: 15));
-      const valNetDot = TextEditingValue(text: 'carlos@mail.net.', selection: TextSelection.collapsed(offset: 16));
-      expect(formatter.formatEditUpdate(valNet, valNetDot).text, 'carlos@mail.net');
-
-      // Tras .org
-      const valOrg = TextEditingValue(text: 'carlos@mail.org', selection: TextSelection.collapsed(offset: 15));
-      const valOrgDot = TextEditingValue(text: 'carlos@mail.org.', selection: TextSelection.collapsed(offset: 16));
-      expect(formatter.formatEditUpdate(valOrg, valOrgDot).text, 'carlos@mail.org');
-
-      // Tras .ec
-      const valEc = TextEditingValue(text: 'carlos@mail.ec', selection: TextSelection.collapsed(offset: 14));
-      const valEcDot = TextEditingValue(text: 'carlos@mail.ec.', selection: TextSelection.collapsed(offset: 15));
-      expect(formatter.formatEditUpdate(valEc, valEcDot).text, 'carlos@mail.ec');
+      const valComChar = TextEditingValue(text: 'carlos@mail.coma', selection: TextSelection.collapsed(offset: 16));
+      expect(formatter.formatEditUpdate(valCom, valComChar).text, 'carlos@mail.com');
 
       // Secuencia .com. en el texto
       const valComInMiddle = TextEditingValue(text: 'carlos@mail.com.ar', selection: TextSelection.collapsed(offset: 18));
@@ -197,18 +195,24 @@ void main() {
 
     String? validateEmail(String? val) {
       if (val == null || val.trim().isEmpty) {
-        return 'El correo electrónico es obligatorio.';
+        return 'Por favor, ingresa tu correo electrónico';
       }
-      final trimmed = val.trim();
-      if (trimmed.endsWith('.')) {
-        return 'El correo no puede terminar con un punto.';
+      final trimmed = val.trim().toLowerCase();
+      if (trimmed.startsWith('.') || trimmed.startsWith('_') || trimmed.startsWith('@')) {
+        return 'Ingresa un correo electrónico válido';
       }
-      if (RegExp(r'\.(com|net|org|ec)\.', caseSensitive: false).hasMatch(trimmed) || trimmed.contains('..')) {
-        return 'El correo no debe contener puntos después de la extensión (ej: .com.).';
+      if (trimmed.endsWith('.') || trimmed.endsWith('_') || trimmed.endsWith('@')) {
+        return 'Ingresa un correo electrónico válido';
       }
-      final strictEmailRegex = RegExp(r'^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$');
-      if (!strictEmailRegex.hasMatch(trimmed)) {
-        return 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).';
+      if (RegExp(r'[._@]{2}').hasMatch(trimmed)) {
+        return 'Ingresa un correo electrónico válido';
+      }
+      if ('@'.allMatches(trimmed).length != 1) {
+        return 'Ingresa un correo electrónico válido';
+      }
+      final emailRegex = RegExp(r'^[a-z0-9]+([._][a-z0-9]+)*@[a-z0-9]+(\.[a-z0-9]+)*\.[a-z]{2,}$');
+      if (!emailRegex.hasMatch(trimmed)) {
+        return 'Ingresa un correo electrónico válido';
       }
       return null;
     }
@@ -236,19 +240,17 @@ void main() {
       expect(validateName('María José Peña Gómez'), isNull);
     });
 
-    test('Correo: rechaza vacío, si termina en punto, secuencias .com. o estructura inválida', () {
-      expect(validateEmail(''), 'El correo electrónico es obligatorio.');
-      expect(validateEmail('usuario@dominio.'), 'El correo no puede terminar con un punto.');
-      expect(validateEmail('usuario@dominio.com.'), 'El correo no puede terminar con un punto.');
-      expect(validateEmail('usuario@dominio.com.ar'), 'El correo no debe contener puntos después de la extensión (ej: .com.).');
-      expect(validateEmail('usuario@dominio.net.ec'), 'El correo no debe contener puntos después de la extensión (ej: .com.).');
-      expect(validateEmail('usuario@dominio'), 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).');
-      expect(validateEmail('usuario.com'), 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).');
-      expect(validateEmail('usuario@dominio..com'), 'El correo no debe contener puntos después de la extensión (ej: .com.).');
-      expect(validateEmail('usuario@dominio.c'), 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).');
-      expect(validateEmail('usuario@dominio.123'), 'Ingresa un correo electrónico válido (ej: usuario@dominio.com).');
+    test('Correo: rechaza vacío, si termina en punto o estructura inválida', () {
+      expect(validateEmail(''), 'Por favor, ingresa tu correo electrónico');
+      expect(validateEmail('usuario@dominio.'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario@dominio.com.'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario@dominio'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario.com'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario@dominio..com'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario@dominio.c'), 'Ingresa un correo electrónico válido');
+      expect(validateEmail('usuario@dominio.123'), 'Ingresa un correo electrónico válido');
       expect(validateEmail('usuario@dominio.com'), isNull);
-      expect(validateEmail('carlos_mendoza-12@empresa.com'), isNull);
+      expect(validateEmail('carlos_mendoza.12@empresa.com'), isNull);
       expect(validateEmail('carlos@empresa.ec'), isNull);
       expect(validateEmail('carlos@empresa.org'), isNull);
       expect(validateEmail('carlos@empresa.net'), isNull);

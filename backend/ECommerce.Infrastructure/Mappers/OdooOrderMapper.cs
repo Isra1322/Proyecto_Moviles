@@ -22,16 +22,52 @@ public static class OdooOrderMapper
 
     public static OrderItemDto ToItemDto(OdooOrderLineModel line)
     {
-        var product = OdooJsonHelper.GetMany2One(line.ProductId);
+        var lineName = OdooJsonHelper.GetStringOrNull(line.Name);
+        var (productId, productName) = OdooJsonHelper.ExtractProductIdAndName(line.ProductId, lineName);
 
-        return new OrderItemDto
+        var quantity = OdooJsonHelper.SafeToDecimal(line.ProductUomQty, 0m);
+        var priceUnit = OdooJsonHelper.SafeToDecimal(line.PriceUnit, 0m);
+        var priceSubtotal = OdooJsonHelper.SafeToDecimal(line.PriceSubtotal, 0m);
+
+        var subtotal = priceSubtotal != 0m
+            ? priceSubtotal
+            : (quantity * priceUnit);
+
+        return new OrderLineDto
         {
             Id = line.Id,
-            ProductId = product?.Id ?? 0,
-            ProductName = product?.Name ?? line.Name,
-            Quantity = line.ProductUomQty,
-            UnitPrice = line.PriceUnit,
-            Subtotal = line.PriceSubtotal
+            ProductId = productId,
+            ProductName = productName,
+            Quantity = quantity,
+            UnitPrice = priceUnit,
+            Subtotal = subtotal
+        };
+    }
+
+    public static OrderDto ToSummaryDto(OdooOrderModel order, int defaultCustomerId = 0)
+    {
+        var partner = OdooJsonHelper.GetMany2One(order.PartnerId);
+        var dateString = OdooJsonHelper.GetStringOrNull(order.DateOrder);
+        DateTime.TryParse(dateString, out var orderDate);
+
+        var customerId = partner?.Id ?? 0;
+        if (customerId <= 0 && defaultCustomerId > 0)
+        {
+            customerId = defaultCustomerId;
+        }
+
+        var totalAmount = OdooJsonHelper.SafeToDecimal(order.AmountTotal, 0m);
+
+        return new OrderDto
+        {
+            Id = order.Id,
+            OdooOrderId = order.Id,
+            CustomerId = customerId,
+            CustomerName = partner?.Name ?? string.Empty,
+            OrderDate = orderDate != default ? orderDate : DateTime.UtcNow,
+            Status = MapStatus(order.State),
+            TotalAmount = totalAmount,
+            Items = new List<OrderItemDto>()
         };
     }
 
@@ -43,7 +79,9 @@ public static class OdooOrderMapper
 
         var itemDtos = lines != null && lines.Count > 0
             ? lines.Select(ToItemDto).ToList()
-            : OdooJsonHelper.GetIntList(order.OrderLine).Select(id => new OrderItemDto { Id = id }).ToList();
+            : new List<OrderItemDto>();
+
+        var totalAmount = OdooJsonHelper.SafeToDecimal(order.AmountTotal, 0m);
 
         return new OrderDto
         {
@@ -53,7 +91,7 @@ public static class OdooOrderMapper
             CustomerName = partner?.Name ?? string.Empty,
             OrderDate = orderDate != default ? orderDate : DateTime.UtcNow,
             Status = MapStatus(order.State),
-            TotalAmount = order.AmountTotal,
+            TotalAmount = totalAmount,
             Items = itemDtos
         };
     }
@@ -66,15 +104,15 @@ public static class OdooOrderMapper
 
         var items = lines?.Select(l =>
         {
-            var p = OdooJsonHelper.GetMany2One(l.ProductId);
+            var itemDto = ToItemDto(l);
             return new OrderItem
             {
-                Id = l.Id,
+                Id = itemDto.Id,
                 OrderId = order.Id,
-                ProductId = p?.Id ?? 0,
-                ProductName = p?.Name ?? l.Name,
-                Quantity = l.ProductUomQty,
-                UnitPrice = l.PriceUnit
+                ProductId = itemDto.ProductId,
+                ProductName = itemDto.ProductName,
+                Quantity = itemDto.Quantity,
+                UnitPrice = itemDto.UnitPrice
             };
         }).ToList() ?? new List<OrderItem>();
 
@@ -86,7 +124,7 @@ public static class OdooOrderMapper
             CustomerName = partner?.Name ?? string.Empty,
             OrderDate = orderDate != default ? orderDate : DateTime.UtcNow,
             Status = MapStatus(order.State),
-            TotalAmount = order.AmountTotal,
+            TotalAmount = OdooJsonHelper.SafeToDecimal(order.AmountTotal, 0m),
             Items = items
         };
     }

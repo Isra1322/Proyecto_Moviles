@@ -9,7 +9,6 @@ import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/error_view.dart';
 import '../../widgets/common/empty_view.dart';
 import '../../widgets/product/product_card.dart';
-import '../../widgets/product/category_selector.dart';
 import '../../widgets/cart/cart_badge_icon.dart';
 import '../../routes/app_routes.dart';
 
@@ -293,31 +292,60 @@ class _CatalogScreenState extends State<CatalogScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Catálogo de Productos'),
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        backgroundColor: AppColors.background,
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Descubre Productos',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              productProvider.selectedCategoryId != null
+                  ? 'Filtrado por categoría'
+                  : 'Encuentra las mejores ofertas para ti',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
         actions: [
-          CartBadgeIcon(
-            onTap: () => Navigator.pushNamed(context, AppRoutes.cart),
+          Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: CartBadgeIcon(
+              onTap: () => Navigator.pushNamed(context, AppRoutes.cart),
+            ),
           ),
         ],
       ),
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Buscador en tiempo real
+            // 1. Buscador en tiempo real con diseño limpio y sombra suave
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
+                  borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withAlpha(8),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
                     ),
                   ],
+                  border: Border.all(color: Colors.grey.shade200),
                 ),
                 child: TextField(
                   controller: _searchController,
@@ -331,6 +359,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     prefixIcon: const Icon(
                       Icons.search,
                       color: AppColors.primary,
+                      size: 22,
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
@@ -351,54 +380,51 @@ class _CatalogScreenState extends State<CatalogScreen> {
               ),
             ),
 
-            // 2. Barra de Filtro de Precios y Selector "Ordenar por"
+            // 2. Fila uniforme de dos botones de acción rápida ("Precio" y "Ordenar por")
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   // Botón Rango de Precios
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: productProvider.hasPriceFilter
-                            ? AppColors.primary.withAlpha(20)
-                            : Colors.white,
-                        side: BorderSide(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: productProvider.hasPriceFilter
+                              ? AppColors.primary.withAlpha(20)
+                              : Colors.white,
+                          side: BorderSide(
+                            color: productProvider.hasPriceFilter
+                                ? AppColors.primary
+                                : Colors.grey.shade300,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () =>
+                            _showPriceFilterSheet(context, productProvider),
+                        icon: Icon(
+                          Icons.tune,
+                          size: 18,
                           color: productProvider.hasPriceFilter
                               ? AppColors.primary
-                              : AppColors.border,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: () =>
-                          _showPriceFilterSheet(context, productProvider),
-                      icon: Icon(
-                        Icons.tune,
-                        size: 18,
-                        color: productProvider.hasPriceFilter
-                            ? AppColors.primary
-                            : AppColors.textPrimary,
-                      ),
-                      label: Text(
-                        productProvider.hasPriceFilter
-                            ? '\$${productProvider.minPrice?.toStringAsFixed(0)} - \$${productProvider.maxPrice?.toStringAsFixed(0)}'
-                            : 'Precio',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: productProvider.hasPriceFilter
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          color: productProvider.hasPriceFilter
-                              ? AppColors.primaryDark
                               : AppColors.textPrimary,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        label: Text(
+                          productProvider.hasPriceFilter
+                              ? '\$${productProvider.minPrice?.toStringAsFixed(0)} - \$${productProvider.maxPrice?.toStringAsFixed(0)}'
+                              : 'Precio',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: productProvider.hasPriceFilter
+                                ? AppColors.primaryDark
+                                : AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ),
@@ -406,49 +432,46 @@ class _CatalogScreenState extends State<CatalogScreen> {
 
                   // Botón Ordenar por
                   Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor:
-                            productProvider.sortOption != ProductSortOption.none
-                                ? AppColors.primary.withAlpha(20)
-                                : Colors.white,
-                        side: BorderSide(
+                    child: SizedBox(
+                      height: 44,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: productProvider.sortOption !=
+                                  ProductSortOption.none
+                              ? AppColors.primary.withAlpha(20)
+                              : Colors.white,
+                          side: BorderSide(
+                            color: productProvider.sortOption !=
+                                    ProductSortOption.none
+                                ? AppColors.primary
+                                : Colors.grey.shade300,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        onPressed: () =>
+                            _showSortSheet(context, productProvider),
+                        icon: Icon(
+                          Icons.swap_vert,
+                          size: 18,
                           color: productProvider.sortOption !=
                                   ProductSortOption.none
                               ? AppColors.primary
-                              : AppColors.border,
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 10,
-                          horizontal: 8,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: () => _showSortSheet(context, productProvider),
-                      icon: Icon(
-                        Icons.swap_vert,
-                        size: 18,
-                        color: productProvider.sortOption !=
-                                ProductSortOption.none
-                            ? AppColors.primary
-                            : AppColors.textPrimary,
-                      ),
-                      label: Text(
-                        _getSortLabel(productProvider.sortOption),
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: productProvider.sortOption !=
-                                  ProductSortOption.none
-                              ? FontWeight.bold
-                              : FontWeight.w500,
-                          color: productProvider.sortOption !=
-                                  ProductSortOption.none
-                              ? AppColors.primaryDark
                               : AppColors.textPrimary,
                         ),
-                        overflow: TextOverflow.ellipsis,
+                        label: Text(
+                          _getSortLabel(productProvider.sortOption),
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: productProvider.sortOption !=
+                                    ProductSortOption.none
+                                ? AppColors.primaryDark
+                                : AppColors.textPrimary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                     ),
                   ),
@@ -460,7 +483,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             if (productProvider.hasActiveFilters) ...[
               Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    const EdgeInsets.fromLTRB(16, 8, 16, 2),
                 child: Row(
                   children: [
                     const Text(
@@ -477,6 +500,36 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         scrollDirection: Axis.horizontal,
                         child: Row(
                           children: [
+                            if (productProvider.selectedCategoryId != null) ...[
+                              Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: Chip(
+                                  avatar: const Icon(Icons.category,
+                                      size: 14, color: AppColors.primary),
+                                  label: Text(
+                                    productProvider.categories
+                                            .where((c) =>
+                                                c.id ==
+                                                productProvider
+                                                    .selectedCategoryId)
+                                            .firstOrNull
+                                            ?.name ??
+                                        'Categoría',
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  deleteIcon:
+                                      const Icon(Icons.close, size: 14),
+                                  onDeleted: () =>
+                                      productProvider.filterByCategory(null),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                ),
+                              ),
+                            ],
                             if (productProvider.searchQuery.isNotEmpty)
                               Padding(
                                 padding: const EdgeInsets.only(right: 6),
@@ -553,18 +606,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
               ),
             ],
 
-            // 4. Selector de categorías horizontal
-            if (productProvider.categories.isNotEmpty) ...[
-              const SizedBox(height: 6),
-              CategorySelector(
-                categories: productProvider.categories,
-                selectedCategoryId: productProvider.selectedCategoryId,
-                onSelected: (id) => productProvider.filterByCategory(id),
-              ),
-              const SizedBox(height: 6),
-            ],
+            const SizedBox(height: 6),
 
-            // 5. Contenido principal con Grid de productos
+            // 4. Contenido principal con Grid de productos ocupando todo el espacio libre
             Expanded(
               child: RefreshIndicator(
                 onRefresh: () => productProvider.loadProducts(

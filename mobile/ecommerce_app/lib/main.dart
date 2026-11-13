@@ -40,6 +40,7 @@ import 'application/use_cases/cart/clear_cart_use_case.dart';
 // Casos de Uso (Orders)
 import 'application/use_cases/orders/create_order_use_case.dart';
 import 'application/use_cases/orders/get_orders_use_case.dart';
+import 'application/use_cases/orders/get_order_by_id_use_case.dart';
 
 // Providers
 import 'presentation/providers/auth_provider.dart';
@@ -112,6 +113,7 @@ void main() async {
     cartRepository,
   );
   final getOrdersUseCase = GetOrdersUseCase(orderRepository);
+  final getOrderByIdUseCase = GetOrderByIdUseCase(orderRepository);
 
   // 6. Ejecutar la App con MultiProvider
   runApp(
@@ -142,7 +144,11 @@ void main() async {
           ),
         ),
         ChangeNotifierProvider(
-          create: (_) => OrderProvider(createOrderUseCase, getOrdersUseCase),
+          create: (_) => OrderProvider(
+            createOrderUseCase,
+            getOrdersUseCase,
+            getOrderByIdUseCase,
+          ),
         ),
       ],
       child: const MyApp(),

@@ -35,4 +35,13 @@ class OrderRemoteDataSource {
     }
     return <OrderModel>[];
   }
+
+  Future<OrderModel> getOrderById(int orderId) async {
+    final data = await _client.get('${ApiConstants.orders}/$orderId');
+
+    if (data is Map<String, dynamic>) {
+      return OrderModel.fromJson(data);
+    }
+    throw const FormatException('Formato de orden inesperado devuelto por la API.');
+  }
 }

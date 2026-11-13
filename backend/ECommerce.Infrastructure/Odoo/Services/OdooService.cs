@@ -1272,26 +1272,38 @@ public class OdooService : IOdooService
             var payload = new
             {
                 domain = domain,
-                fields = new[] { "id", "name", "date_order", "amount_total", "state", "order_line" },
+                fields = new[] { "id", "name", "date_order", "amount_total", "state" },
                 order = "id desc",
                 limit = 50
             };
 
-            var orders = await CallJson2Async<List<OdooOrderModel>>(
+            var responseElement = await CallJson2Async<JsonElement>(
                 "sale.order",
                 "search_read",
                 payload,
-                cts.Token) ?? new List<OdooOrderModel>();
+                cts.Token);
 
-            return orders.Select(order =>
+            var records = ExtractRecordsFromJson2(responseElement);
+
+            var result = new List<OrderDto>();
+            foreach (var record in records)
             {
-                var dto = OdooOrderMapper.ToDto(order);
-                if (dto.CustomerId <= 0 && customerId > 0)
+                try
                 {
-                    dto.CustomerId = customerId;
+                    var order = JsonSerializer.Deserialize<OdooOrderModel>(record.GetRawText(), JsonOptions);
+                    if (order != null)
+                    {
+                        var dto = OdooOrderMapper.ToSummaryDto(order, customerId);
+                        result.Add(dto);
+                    }
                 }
-                return dto;
-            }).ToList();
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error al deserializar orden de venta resumida: {RecordText}", record.GetRawText());
+                }
+            }
+
+            return result;
         }
         catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
         {
@@ -1303,6 +1315,16 @@ public class OdooService : IOdooService
     public Task<IReadOnlyList<OrderDto>> GetOrdersByPartnerAsync(int partnerId, CancellationToken cancellationToken = default)
     {
         return GetOrdersByCustomerAsync(partnerId, cancellationToken);
+    }
+
+    public async Task<OrderDto> GetOrderByIdAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        return await FetchOrderDetailsAsync(orderId, cancellationToken);
+    }
+
+    public Task<OrderDto> GetOrderDetailAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        return GetOrderByIdAsync(orderId, cancellationToken);
     }
 
     private async Task<OrderDto> FetchOrderDetailsAsync(int orderId, CancellationToken cancellationToken)
@@ -1317,17 +1339,23 @@ public class OdooService : IOdooService
             limit = 1
         };
 
-        var orders = await CallJson2Async<List<OdooOrderModel>>(
+        var responseElement = await CallJson2Async<JsonElement>(
             "sale.order",
             "search_read",
             payload,
             cancellationToken);
 
-        var order = orders?.FirstOrDefault()
+        var orders = ExtractRecordsFromJson2(responseElement);
+        if (orders == null || orders.Count == 0)
+        {
+            throw new NotFoundException("Order", orderId);
+        }
+
+        var order = JsonSerializer.Deserialize<OdooOrderModel>(orders[0].GetRawText(), JsonOptions)
             ?? throw new NotFoundException("Order", orderId);
 
         var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
-        List<OdooOrderLineModel> lines = new();
+        var lines = new List<OdooOrderLineModel>();
 
         if (lineIds.Count > 0)
         {
@@ -1337,14 +1365,31 @@ public class OdooService : IOdooService
                 {
                     new object[] { "id", "in", lineIds }
                 },
-                fields = new[] { "id", "order_id", "product_id", "name", "product_uom_qty", "price_unit", "price_subtotal" }
+                fields = new[] { "id", "product_id", "name", "product_uom_qty", "price_unit", "price_subtotal" }
             };
 
-            lines = await CallJson2Async<List<OdooOrderLineModel>>(
+            var lineResponseElement = await CallJson2Async<JsonElement>(
                 "sale.order.line",
                 "search_read",
                 linePayload,
-                cancellationToken) ?? new List<OdooOrderLineModel>();
+                cancellationToken);
+
+            var lineRecords = ExtractRecordsFromJson2(lineResponseElement);
+            foreach (var lr in lineRecords)
+            {
+                try
+                {
+                    var lineModel = JsonSerializer.Deserialize<OdooOrderLineModel>(lr.GetRawText(), JsonOptions);
+                    if (lineModel != null)
+                    {
+                        lines.Add(lineModel);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error al deserializar línea de orden {RecordText}", lr.GetRawText());
+                }
+            }
         }
 
         return OdooOrderMapper.ToDto(order, lines);
