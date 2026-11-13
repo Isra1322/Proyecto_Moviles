@@ -4,7 +4,6 @@ import 'package:ecommerce_app/core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
-import '../catalog/catalog_screen.dart';
 import '../../routes/app_routes.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -36,8 +35,8 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
     if (success && mounted) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const CatalogScreen()),
+      Navigator.of(context).pushNamedAndRemoveUntil(
+        AppRoutes.catalog,
         (_) => false,
       );
     }

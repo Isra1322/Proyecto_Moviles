@@ -7,6 +7,7 @@ import 'package:ecommerce_app/domain/entities/order.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/order_provider.dart';
+import '../../routes/app_routes.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/error_view.dart';
 import '../../widgets/common/empty_view.dart';
@@ -113,6 +114,8 @@ class _OrderCard extends StatelessWidget {
       case 'confirmado':
       case 'confirmed':
       case '3':
+      case 'done':
+      case '4':
         return AppColors.success;
       case 'cancelado':
       case 'cancelled':
@@ -127,96 +130,118 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Pedido #${order.id}',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _statusColor().withAlpha(30),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    order.displayStatus,
-                    style: TextStyle(
-                      color: _statusColor(),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
+      clipBehavior: Clip.antiAlias,
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: InkWell(
+        onTap: () {
+          Navigator.pushNamed(
+            context,
+            AppRoutes.orderDetail,
+            arguments: order,
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Pedido #${order.id}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(
-                  Icons.calendar_today_outlined,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  DateFormatter.format(order.orderDate),
-                  style: const TextStyle(
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _statusColor().withAlpha(30),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      order.displayStatus,
+                      style: TextStyle(
+                        color: _statusColor(),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_outlined,
+                    size: 14,
                     color: AppColors.textSecondary,
-                    fontSize: 13,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                const Icon(
-                  Icons.shopping_bag_outlined,
-                  size: 14,
-                  color: AppColors.textSecondary,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  '${order.items.length} producto(s)',
-                  style: const TextStyle(
+                  const SizedBox(width: 6),
+                  Text(
+                    DateFormatter.format(order.orderDate),
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  const Icon(
+                    Icons.shopping_bag_outlined,
+                    size: 14,
                     color: AppColors.textSecondary,
-                    fontSize: 13,
                   ),
-                ),
-              ],
-            ),
-            const Divider(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total:',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-                Text(
-                  CurrencyFormatter.format(order.totalAmount),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                    color: AppColors.primary,
+                  const SizedBox(width: 6),
+                  Text(
+                    '${order.items.length} producto(s)',
+                    style: const TextStyle(
+                      color: AppColors.textSecondary,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ],
+                ],
+              ),
+              const Divider(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Total:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  Row(
+                    children: [
+                      Text(
+                        CurrencyFormatter.format(order.totalAmount),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.chevron_right,
+                        size: 20,
+                        color: AppColors.textSecondary,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
