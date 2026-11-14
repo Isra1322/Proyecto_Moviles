@@ -125,7 +125,7 @@ void main() async {
             registerUseCase,
             getSavedUserUseCase,
             logoutUseCase,
-          ),
+          )..checkSavedSession(),
         ),
         ChangeNotifierProvider(
           create: (_) => ProductProvider(

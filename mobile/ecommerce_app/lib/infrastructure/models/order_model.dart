@@ -10,6 +10,7 @@ class OrderModel {
   final dynamic status; // Puede venir como int o string de .NET
   final String? statusName;
   final double totalAmount;
+  final int itemsCount;
   final List<OrderItemModel> items;
 
   const OrderModel({
@@ -22,6 +23,7 @@ class OrderModel {
     required this.status,
     this.statusName,
     required this.totalAmount,
+    this.itemsCount = 0,
     this.items = const [],
   });
 
@@ -56,6 +58,41 @@ class OrderModel {
         (json['amount_total'] as num?)?.toDouble() ??
         0.0;
 
+    // 4. Cantidad de productos (itemsCount, productsCount, order_line array length o itemList.length)
+    int extractCount(dynamic val) {
+      if (val is num) return val.toInt();
+      if (val is String) return int.tryParse(val) ?? 0;
+      if (val is List) return val.length;
+      return 0;
+    }
+
+    int parsedItemsCount = 0;
+    for (final key in [
+      'itemsCount',
+      'items_count',
+      'ItemsCount',
+      'productsCount',
+      'products_count',
+      'ProductsCount',
+      'order_line',
+      'orderLine',
+      'orderLines',
+      'lines',
+      'items',
+    ]) {
+      final count = extractCount(json[key]);
+      if (count > 0) {
+        parsedItemsCount = count;
+        break;
+      }
+    }
+
+    if (parsedItemsCount == 0 && itemList.isNotEmpty) {
+      parsedItemsCount = itemList.length;
+    } else if (itemList.isNotEmpty && parsedItemsCount < itemList.length) {
+      parsedItemsCount = itemList.length;
+    }
+
     return OrderModel(
       id: json['id'] as int? ?? 0,
       odooOrderId: json['odooOrderId'] as int?,
@@ -66,6 +103,7 @@ class OrderModel {
       status: json['status'] ?? json['state'],
       statusName: json['statusName'] as String?,
       totalAmount: parsedTotalAmount,
+      itemsCount: parsedItemsCount,
       items: itemList,
     );
   }
@@ -81,6 +119,8 @@ class OrderModel {
       'status': status,
       'statusName': statusName,
       'totalAmount': totalAmount,
+      'itemsCount': itemsCount,
+      'productsCount': itemsCount,
       'items': items.map((i) => i.toJson()).toList(),
     };
   }

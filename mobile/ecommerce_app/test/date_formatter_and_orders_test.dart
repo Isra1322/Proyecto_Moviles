@@ -109,13 +109,53 @@ void main() {
         status: 'draft',
         statusName: 'Borrador',
         totalAmount: 115.0,
+        itemsCount: 4,
       );
 
       final entity = OrderMapper.toEntity(model);
       expect(entity.id, 101);
       expect(entity.orderDate.isUtc, isTrue);
       expect(entity.displayStatus, 'Borrador');
+      expect(entity.itemsCount, 4);
       expect(DateFormatter.format(entity.orderDate).isNotEmpty, isTrue);
+    });
+
+    test('OrderModel.fromJson extrae itemsCount y productsCount correctamente', () {
+      final json1 = {
+        'id': 201,
+        'itemsCount': 5,
+        'customerId': 1,
+        'customerName': 'Test',
+        'orderDate': '2026-11-03T18:45:00.000Z',
+        'status': 'sale',
+        'totalAmount': 200.0,
+      };
+      final model1 = OrderModel.fromJson(json1);
+      expect(model1.itemsCount, 5);
+
+      final json2 = {
+        'id': 202,
+        'productsCount': 3,
+        'customerId': 1,
+        'customerName': 'Test',
+        'orderDate': '2026-11-03T18:45:00.000Z',
+        'status': 'sale',
+        'totalAmount': 150.0,
+      };
+      final model2 = OrderModel.fromJson(json2);
+      expect(model2.itemsCount, 3);
+
+      final json3 = {
+        'id': 203,
+        'order_line': [10, 20, 30, 40],
+        'customerId': 1,
+        'customerName': 'Test',
+        'orderDate': '2026-11-03T18:45:00.000Z',
+        'status': 'sale',
+        'totalAmount': 400.0,
+      };
+      final model3 = OrderModel.fromJson(json3);
+      expect(model3.itemsCount, 4);
     });
   });
 
@@ -188,6 +228,64 @@ void main() {
       expect(find.text('Pedido #1234'), findsOneWidget);
       expect(find.text('03/11/2026 15:45'), findsOneWidget);
       expect(find.text('1 producto(s)'), findsOneWidget);
+    });
+
+    testWidgets('Muestra itemsCount correctamente cuando items es vacio (resumen de pedidos)', (tester) async {
+      await initializeDateFormatting('es_ES', null);
+
+      final summaryOrder = Order(
+        id: 5678,
+        odooOrderId: 890,
+        customerId: 1,
+        customerName: 'Test User',
+        orderDate: DateTime(2026, 11, 4, 10, 15),
+        status: 'draft',
+        totalAmount: 150.0,
+        itemsCount: 3,
+        items: const [],
+      );
+
+      const fakeUser = User(
+        uid: 1,
+        name: 'Test User',
+        username: 'test@example.com',
+        partnerId: 1,
+      );
+
+      final orderRepo = FakeOrderRepository([summaryOrder]);
+      final authRepo = FakeAuthRepository(fakeUser);
+      final cartRepo = FakeCartRepository();
+
+      final authProvider = AuthProvider(
+        LoginUseCase(authRepo),
+        RegisterUseCase(authRepo),
+        GetSavedUserUseCase(authRepo),
+        LogoutUseCase(authRepo),
+      );
+      await authProvider.checkSavedSession();
+
+      final orderProvider = OrderProvider(
+        CreateOrderUseCase(orderRepo, cartRepo),
+        GetOrdersUseCase(orderRepo),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            ChangeNotifierProvider<OrderProvider>.value(value: orderProvider),
+          ],
+          child: const MaterialApp(
+            home: OrderHistoryScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Pedido #5678'), findsOneWidget);
+      expect(find.text('3 producto(s)'), findsOneWidget);
     });
   });
 }

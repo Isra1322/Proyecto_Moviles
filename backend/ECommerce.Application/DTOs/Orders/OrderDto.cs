@@ -18,6 +18,21 @@ public class OrderDto
     [JsonPropertyName("amount_total")]
     public decimal AmountTotal => TotalAmount;
 
+    [JsonPropertyName("itemsCount")]
+    public int ItemsCount { get; set; }
+
+    [JsonPropertyName("productsCount")]
+    public int ProductsCount => ItemsCount;
+
+    [JsonPropertyName("items_count")]
+    public int ItemsCountSnake => ItemsCount;
+
+    [JsonPropertyName("products_count")]
+    public int ProductsCountSnake => ItemsCount;
+
+    [JsonPropertyName("order_line")]
+    public int[] OrderLine => Enumerable.Range(0, ItemsCount).ToArray();
+
     public List<OrderItemDto> Items { get; set; } = new();
     public List<OrderItemDto> OrderLines => Items;
 }

@@ -1,5 +1,6 @@
 namespace ECommerce.Infrastructure.Mappers;
 
+using System.Text.Json;
 using ECommerce.Application.DTOs.Orders;
 using ECommerce.Domain.Entities;
 using ECommerce.Domain.Enums;
@@ -58,6 +59,17 @@ public static class OdooOrderMapper
 
         var totalAmount = OdooJsonHelper.SafeToDecimal(order.AmountTotal, 0m);
 
+        int itemsCount = 0;
+        var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
+        if (lineIds.Count > 0)
+        {
+            itemsCount = lineIds.Count;
+        }
+        else if (order.OrderLine.ValueKind == JsonValueKind.Array)
+        {
+            itemsCount = order.OrderLine.GetArrayLength();
+        }
+
         return new OrderDto
         {
             Id = order.Id,
@@ -67,6 +79,7 @@ public static class OdooOrderMapper
             OrderDate = orderDate != default ? orderDate : DateTime.UtcNow,
             Status = MapStatus(order.State),
             TotalAmount = totalAmount,
+            ItemsCount = itemsCount,
             Items = new List<OrderItemDto>()
         };
     }
@@ -83,6 +96,20 @@ public static class OdooOrderMapper
 
         var totalAmount = OdooJsonHelper.SafeToDecimal(order.AmountTotal, 0m);
 
+        int itemsCount = itemDtos.Count;
+        if (itemsCount == 0)
+        {
+            var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
+            if (lineIds.Count > 0)
+            {
+                itemsCount = lineIds.Count;
+            }
+            else if (order.OrderLine.ValueKind == JsonValueKind.Array)
+            {
+                itemsCount = order.OrderLine.GetArrayLength();
+            }
+        }
+
         return new OrderDto
         {
             Id = order.Id,
@@ -92,6 +119,7 @@ public static class OdooOrderMapper
             OrderDate = orderDate != default ? orderDate : DateTime.UtcNow,
             Status = MapStatus(order.State),
             TotalAmount = totalAmount,
+            ItemsCount = itemsCount,
             Items = itemDtos
         };
     }

@@ -29,6 +29,7 @@ class OrderMapper {
     final parsedDate = DateFormatter.parseSafe(model.orderDate);
 
     final items = model.items.map(toItemEntity).toList();
+    final itemsCount = model.itemsCount > 0 ? model.itemsCount : items.length;
 
     return Order(
       id: model.id,
@@ -38,6 +39,7 @@ class OrderMapper {
       orderDate: parsedDate,
       status: model.statusName ?? model.status?.toString() ?? 'draft',
       totalAmount: model.totalAmount,
+      itemsCount: itemsCount,
       items: items,
     );
   }

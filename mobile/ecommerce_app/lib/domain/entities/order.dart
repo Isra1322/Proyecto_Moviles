@@ -8,6 +8,7 @@ class Order {
   final DateTime orderDate;
   final String status;
   final double totalAmount;
+  final int? _itemsCount;
   final List<OrderItem> items;
 
   const Order({
@@ -18,8 +19,11 @@ class Order {
     required this.orderDate,
     required this.status,
     required this.totalAmount,
+    int? itemsCount,
     this.items = const [],
-  });
+  }) : _itemsCount = (itemsCount != null && itemsCount > 0) ? itemsCount : null;
+
+  int get itemsCount => _itemsCount ?? items.length;
 
   String get displayStatus {
     switch (status.toLowerCase()) {

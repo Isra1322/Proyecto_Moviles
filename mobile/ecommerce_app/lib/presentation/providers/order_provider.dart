@@ -63,7 +63,25 @@ class OrderProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     try {
-      _orders = await _getOrdersUseCase.execute(customerId);
+      final fetchedOrders = await _getOrdersUseCase.execute(customerId);
+      final existingMap = {for (var o in _orders) o.id: o};
+      _orders = fetchedOrders.map((newOrder) {
+        final existing = existingMap[newOrder.id];
+        if (existing != null && newOrder.itemsCount == 0 && existing.itemsCount > 0) {
+          return Order(
+            id: newOrder.id,
+            odooOrderId: newOrder.odooOrderId,
+            customerId: newOrder.customerId,
+            customerName: newOrder.customerName,
+            orderDate: newOrder.orderDate,
+            status: newOrder.status,
+            totalAmount: newOrder.totalAmount,
+            itemsCount: existing.itemsCount,
+            items: existing.items.isNotEmpty ? existing.items : newOrder.items,
+          );
+        }
+        return newOrder;
+      }).toList();
       _status = ViewStatus.success;
     } catch (e) {
       _errorMessage = _friendlyMessage(e);

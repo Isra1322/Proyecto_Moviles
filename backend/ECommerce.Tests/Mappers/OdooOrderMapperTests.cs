@@ -80,6 +80,8 @@ public class OdooOrderMapperTests
         dto.Status.Should().Be(OrderStatus.Confirmed);
         dto.TotalAmount.Should().Be(350.75m);
         dto.AmountTotal.Should().Be(350.75m);
+        dto.ItemsCount.Should().Be(3);
+        dto.ProductsCount.Should().Be(3);
         dto.Items.Should().BeEmpty(); // Garantizar que la lista resumida no contiene líneas
     }
 }

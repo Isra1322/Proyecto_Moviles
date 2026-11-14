@@ -23,9 +23,13 @@ class _OrderHistoryScreenState extends State<OrderHistoryScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final user = context.read<AuthProvider>().currentUser;
-      if (user != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.currentUser == null) {
+        await authProvider.checkSavedSession();
+      }
+      final user = authProvider.currentUser;
+      if (user != null && mounted) {
         context.read<OrderProvider>().loadOrders(user.customerId);
       }
     });
@@ -204,7 +208,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${order.items.length} producto(s)',
+                    '${order.itemsCount} producto(s)',
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
@@ -247,3 +251,6 @@ class _OrderCard extends StatelessWidget {
     );
   }
 }
+
+/// Alias para compatibilidad con referencias a OrderListScreen
+typedef OrderListScreen = OrderHistoryScreen;

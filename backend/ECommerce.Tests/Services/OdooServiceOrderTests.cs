@@ -270,7 +270,7 @@ public class OdooServiceOrderTests
                 {
                     capturedRequestBody = await req.Content.ReadAsStringAsync(ct);
                 }
-                return JsonResponse("[{\"id\": 10, \"name\": \"SO010\", \"date_order\": \"2026-11-12\", \"amount_total\": 100.0, \"state\": \"sale\"}, {\"id\": 11, \"name\": \"SO011\", \"date_order\": \"2026-11-12\", \"amount_total\": 50.0, \"state\": \"draft\"}]");
+                return JsonResponse("[{\"id\": 10, \"name\": \"SO010\", \"date_order\": \"2026-11-12\", \"amount_total\": 100.0, \"state\": \"sale\", \"order_line\": [101, 102]}, {\"id\": 11, \"name\": \"SO011\", \"date_order\": \"2026-11-12\", \"amount_total\": 50.0, \"state\": \"draft\", \"order_line\": [103]}]");
             });
 
         var httpClient = new HttpClient(handlerMock.Object);
@@ -283,14 +283,13 @@ public class OdooServiceOrderTests
         sentRequests.Should().HaveCount(1);
         sentRequests[0].RequestUri?.AbsolutePath.Should().EndWith("/json/2/sale.order/search_read");
 
-        // Inspect request body to ensure fields are restricted to UI requirements
+        // Inspect request body to ensure fields include order_line
         capturedRequestBody.Should().NotBeNull();
         using var doc = JsonDocument.Parse(capturedRequestBody!);
         var fieldsProp = doc.RootElement.GetProperty("fields");
         var fields = fieldsProp.EnumerateArray().Select(f => f.GetString()).ToList();
 
-        // Estricto: NO traer ni mapear sale.order.line en el listado general
-        fields.Should().BeEquivalentTo(new[] { "id", "name", "date_order", "amount_total", "state" });
+        fields.Should().BeEquivalentTo(new[] { "id", "name", "date_order", "amount_total", "state", "order_line" });
 
         // Assert results
         result.Should().HaveCount(2);
@@ -298,12 +297,16 @@ public class OdooServiceOrderTests
         result[0].CustomerId.Should().Be(7);
         result[0].Status.Should().Be(OrderStatus.Confirmed);
         result[0].TotalAmount.Should().Be(100.0m);
+        result[0].ItemsCount.Should().Be(2);
+        result[0].ProductsCount.Should().Be(2);
         result[0].Items.Should().BeEmpty();
 
         result[1].Id.Should().Be(11);
         result[1].CustomerId.Should().Be(7);
         result[1].Status.Should().Be(OrderStatus.Draft);
         result[1].TotalAmount.Should().Be(50.0m);
+        result[1].ItemsCount.Should().Be(1);
+        result[1].ProductsCount.Should().Be(1);
         result[1].Items.Should().BeEmpty();
     }
 
@@ -344,6 +347,7 @@ public class OdooServiceOrderTests
         sentRequests.Should().HaveCount(1);
         result.Should().HaveCount(1);
         result[0].Id.Should().Be(20);
+        result[0].ItemsCount.Should().Be(1);
         result[0].CustomerId.Should().Be(7);
     }
 

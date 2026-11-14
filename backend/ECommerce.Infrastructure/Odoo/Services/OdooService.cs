@@ -1272,7 +1272,7 @@ public class OdooService : IOdooService
             var payload = new
             {
                 domain = domain,
-                fields = new[] { "id", "name", "date_order", "amount_total", "state" },
+                fields = new[] { "id", "name", "date_order", "amount_total", "state", "order_line" },
                 order = "id desc",
                 limit = 50
             };
@@ -1294,6 +1294,30 @@ public class OdooService : IOdooService
                     if (order != null)
                     {
                         var dto = OdooOrderMapper.ToSummaryDto(order, customerId);
+
+                        int itemsCount = dto.ItemsCount;
+                        if (itemsCount == 0)
+                        {
+                            var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
+                            if (lineIds.Count > 0)
+                            {
+                                itemsCount = lineIds.Count;
+                            }
+                            else if (record.TryGetProperty("order_line", out var orderLineProp) && orderLineProp.ValueKind == JsonValueKind.Array)
+                            {
+                                itemsCount = orderLineProp.GetArrayLength();
+                            }
+                            else if (order.OrderLine.ValueKind == JsonValueKind.Array)
+                            {
+                                itemsCount = order.OrderLine.GetArrayLength();
+                            }
+                        }
+
+                        if (itemsCount > 0)
+                        {
+                            dto.ItemsCount = itemsCount;
+                        }
+
                         result.Add(dto);
                     }
                 }
