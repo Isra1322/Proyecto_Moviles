@@ -40,6 +40,7 @@ class OrderMapper {
       status: model.statusName ?? model.status?.toString() ?? 'draft',
       totalAmount: model.totalAmount,
       itemsCount: itemsCount,
+      totalItemsCount: model.totalItemsCount,
       items: items,
     );
   }

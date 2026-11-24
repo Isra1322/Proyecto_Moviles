@@ -16,6 +16,10 @@ class OrderRepositoryImpl implements IOrderRepository {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   }) async {
     final requestItems = cart.items.map((item) {
       return CreateOrderItemRequestModel(
@@ -29,6 +33,10 @@ class OrderRepositoryImpl implements IOrderRepository {
       customerId: customerId,
       customerName: customerName,
       customerEmail: customerEmail,
+      paymentMethodId: paymentMethodId,
+      paymentReference: paymentReference,
+      shippingAddressId: shippingAddressId,
+      shippingAddressText: shippingAddressText,
       items: requestItems,
     );
 

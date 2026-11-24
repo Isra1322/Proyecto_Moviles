@@ -74,6 +74,10 @@ class FakeOrderRepo implements IOrderRepository {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   }) async {
     throw UnimplementedError();
   }
@@ -380,7 +384,8 @@ void main() {
       expect(find.text('carlos@test.com'), findsOneWidget);
       expect(find.text('Total Gastado Acumulado'), findsOneWidget);
       expect(find.text(CurrencyFormatter.format(230.0)), findsOneWidget);
-      expect(find.text('Cerrar Sesión'), findsOneWidget);
+      expect(find.byIcon(Icons.logout_rounded), findsOneWidget);
+      expect(find.byTooltip('Cerrar Sesión'), findsOneWidget);
     });
   });
 }

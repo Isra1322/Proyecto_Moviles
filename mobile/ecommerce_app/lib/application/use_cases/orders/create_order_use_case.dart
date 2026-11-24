@@ -14,6 +14,10 @@ class CreateOrderUseCase {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   }) async {
     if (customerId <= 0) {
       throw ArgumentError('El identificador del cliente es inválido.');
@@ -29,6 +33,10 @@ class CreateOrderUseCase {
       cart: cart,
       customerName: customerName,
       customerEmail: customerEmail,
+      paymentMethodId: paymentMethodId,
+      paymentReference: paymentReference,
+      shippingAddressId: shippingAddressId,
+      shippingAddressText: shippingAddressText,
     );
 
     // 2. Limpiar el carrito local tras la creación exitosa del pedido

@@ -512,16 +512,34 @@ public class OdooService : IOdooService
 
         // 1. Crear cotización mediante JSON-2: POST /json/2/sale.order/create
         var partnerId = orderDto.CustomerId;
+        var orderVals = new Dictionary<string, object>
+        {
+            ["partner_id"] = partnerId,
+            ["client_order_ref"] = string.IsNullOrWhiteSpace(orderDto.PaymentReference)
+                ? $"PEDIDO-{DateTime.UtcNow:yyyyMMddHHmmss}"
+                : $"PEDIDO-{DateTime.UtcNow:yyyyMMddHHmmss} | {orderDto.PaymentReference}",
+            ["order_line"] = orderLinesPayload // Lista de [0, 0, { "product_id": id, "product_uom_qty": qty, "price_unit": price }]
+        };
+
+        var orderNotes = new List<string>();
+        if (!string.IsNullOrWhiteSpace(orderDto.ShippingAddressText))
+        {
+            orderNotes.Add($"Dirección de Entrega: {orderDto.ShippingAddressText}");
+        }
+        if (!string.IsNullOrWhiteSpace(orderDto.PaymentReference))
+        {
+            orderNotes.Add($"Método de Pago: {orderDto.PaymentReference}");
+        }
+        if (orderNotes.Count > 0)
+        {
+            orderVals["note"] = string.Join("\n", orderNotes);
+        }
+
         var payloadObj = new Dictionary<string, object>
         {
             ["vals_list"] = new object[]
             {
-                new Dictionary<string, object>
-                {
-                    ["partner_id"] = partnerId,
-                    ["client_order_ref"] = $"PEDIDO-{DateTime.UtcNow:yyyyMMddHHmmss}",
-                    ["order_line"] = orderLinesPayload // Lista de [0, 0, { "product_id": id, "product_uom_qty": qty, "price_unit": price }]
-                }
+                orderVals
             }
         };
 
@@ -1286,6 +1304,8 @@ public class OdooService : IOdooService
             var records = ExtractRecordsFromJson2(responseElement);
 
             var result = new List<OrderDto>();
+            var allLineIds = new HashSet<int>();
+
             foreach (var record in records)
             {
                 try
@@ -1295,27 +1315,25 @@ public class OdooService : IOdooService
                     {
                         var dto = OdooOrderMapper.ToSummaryDto(order, customerId);
 
-                        int itemsCount = dto.ItemsCount;
-                        if (itemsCount == 0)
+                        var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
+                        if (lineIds.Count == 0 && record.TryGetProperty("order_line", out var orderLineProp) && orderLineProp.ValueKind == JsonValueKind.Array)
                         {
-                            var lineIds = OdooJsonHelper.GetIntList(order.OrderLine);
-                            if (lineIds.Count > 0)
+                            foreach (var el in orderLineProp.EnumerateArray())
                             {
-                                itemsCount = lineIds.Count;
-                            }
-                            else if (record.TryGetProperty("order_line", out var orderLineProp) && orderLineProp.ValueKind == JsonValueKind.Array)
-                            {
-                                itemsCount = orderLineProp.GetArrayLength();
-                            }
-                            else if (order.OrderLine.ValueKind == JsonValueKind.Array)
-                            {
-                                itemsCount = order.OrderLine.GetArrayLength();
+                                if (el.ValueKind == JsonValueKind.Number)
+                                {
+                                    lineIds.Add(el.GetInt32());
+                                }
                             }
                         }
 
-                        if (itemsCount > 0)
+                        if (lineIds.Count > 0)
                         {
-                            dto.ItemsCount = itemsCount;
+                            dto.ItemsCount = lineIds.Count;
+                            foreach (var lid in lineIds)
+                            {
+                                allLineIds.Add(lid);
+                            }
                         }
 
                         result.Add(dto);
@@ -1324,6 +1342,91 @@ public class OdooService : IOdooService
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Error al deserializar orden de venta resumida: {RecordText}", record.GetRawText());
+                }
+            }
+
+            if (allLineIds.Count > 0)
+            {
+                try
+                {
+                    var linePayload = new
+                    {
+                        domain = new List<object>
+                        {
+                            new object[] { "id", "in", allLineIds.ToList() }
+                        },
+                        fields = new[] { "id", "order_id", "product_uom_qty" },
+                        limit = 500
+                    };
+
+                    var lineResponseElement = await CallJson2Async<JsonElement>(
+                        "sale.order.line",
+                        "search_read",
+                        linePayload,
+                        cts.Token);
+
+                    var lineRecords = ExtractRecordsFromJson2(lineResponseElement);
+                    var orderQtyMap = new Dictionary<int, decimal>();
+
+                    foreach (var lr in lineRecords)
+                    {
+                        int orderId = 0;
+                        if (lr.TryGetProperty("order_id", out var orderIdProp))
+                        {
+                            if (orderIdProp.ValueKind == JsonValueKind.Array && orderIdProp.GetArrayLength() > 0)
+                            {
+                                orderId = orderIdProp[0].GetInt32();
+                            }
+                            else if (orderIdProp.ValueKind == JsonValueKind.Number)
+                            {
+                                orderId = orderIdProp.GetInt32();
+                            }
+                        }
+
+                        decimal qty = 0m;
+                        if (lr.TryGetProperty("product_uom_qty", out var qtyProp) && qtyProp.ValueKind == JsonValueKind.Number)
+                        {
+                            qty = qtyProp.GetDecimal();
+                        }
+
+                        if (orderId > 0 && qty > 0m)
+                        {
+                            orderQtyMap[orderId] = orderQtyMap.GetValueOrDefault(orderId) + qty;
+                        }
+                    }
+
+                    foreach (var dto in result)
+                    {
+                        if (orderQtyMap.TryGetValue(dto.Id, out var totalQty) && totalQty > 0m)
+                        {
+                            dto.TotalItemsCount = (int)Math.Round(totalQty);
+                        }
+                        else
+                        {
+                            dto.TotalItemsCount = dto.ItemsCount;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "No se pudieron calcular las cantidades acumuladas de líneas en Odoo para el cliente {CustomerId}. Se usará ItemsCount como TotalItemsCount.", customerId);
+                    foreach (var dto in result)
+                    {
+                        if (dto.TotalItemsCount == 0)
+                        {
+                            dto.TotalItemsCount = dto.ItemsCount;
+                        }
+                    }
+                }
+            }
+            else
+            {
+                foreach (var dto in result)
+                {
+                    if (dto.TotalItemsCount == 0)
+                    {
+                        dto.TotalItemsCount = dto.ItemsCount;
+                    }
                 }
             }
 

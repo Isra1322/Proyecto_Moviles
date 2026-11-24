@@ -80,6 +80,7 @@ public static class OdooOrderMapper
             Status = MapStatus(order.State),
             TotalAmount = totalAmount,
             ItemsCount = itemsCount,
+            TotalItemsCount = itemsCount,
             Items = new List<OrderItemDto>()
         };
     }
@@ -110,6 +111,10 @@ public static class OdooOrderMapper
             }
         }
 
+        int totalItemsCount = itemDtos.Count > 0
+            ? (int)Math.Round(itemDtos.Sum(i => i.Quantity))
+            : itemsCount;
+
         return new OrderDto
         {
             Id = order.Id,
@@ -120,6 +125,7 @@ public static class OdooOrderMapper
             Status = MapStatus(order.State),
             TotalAmount = totalAmount,
             ItemsCount = itemsCount,
+            TotalItemsCount = totalItemsCount,
             Items = itemDtos
         };
     }

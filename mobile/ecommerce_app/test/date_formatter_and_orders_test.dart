@@ -32,6 +32,10 @@ class FakeOrderRepository implements IOrderRepository {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   }) async {
     throw UnimplementedError();
   }
@@ -157,6 +161,22 @@ void main() {
       final model3 = OrderModel.fromJson(json3);
       expect(model3.itemsCount, 4);
     });
+
+    test('OrderModel.fromJson extrae totalItemsCount y totalQuantity correctamente', () {
+      final json = {
+        'id': 301,
+        'order_line': [1, 2, 3, 4, 5, 6],
+        'totalItemsCount': 15,
+        'customerId': 1,
+        'customerName': 'Test',
+        'orderDate': '2026-11-03T18:45:00.000Z',
+        'status': 'sale',
+        'totalAmount': 1500.0,
+      };
+      final model = OrderModel.fromJson(json);
+      expect(model.itemsCount, 6);
+      expect(model.totalItemsCount, 15);
+    });
   });
 
   group('OrderHistoryScreen Widget Tests', () {
@@ -223,11 +243,11 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Verificar que se renderizó el pedido
+      // Verificar que se renderizó el pedido sumando las cantidades reales (2 unidades)
       expect(find.text('Mis Pedidos'), findsOneWidget);
       expect(find.text('Pedido #1234'), findsOneWidget);
       expect(find.text('03/11/2026 15:45'), findsOneWidget);
-      expect(find.text('1 producto(s)'), findsOneWidget);
+      expect(find.text('2 productos'), findsOneWidget);
     });
 
     testWidgets('Muestra itemsCount correctamente cuando items es vacio (resumen de pedidos)', (tester) async {
@@ -285,7 +305,155 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Pedido #5678'), findsOneWidget);
-      expect(find.text('3 producto(s)'), findsOneWidget);
+      expect(find.text('3 productos'), findsOneWidget);
+    });
+
+    testWidgets('Calcula unidades acumuladas: 1 producto para unidad única y 3 productos para Pedido #35 con 3 unidades', (tester) async {
+      await initializeDateFormatting('es_ES', null);
+
+      final singleUnitOrder = Order(
+        id: 34,
+        odooOrderId: 34,
+        customerId: 1,
+        customerName: 'Test User',
+        orderDate: DateTime(2026, 11, 4, 11, 0),
+        status: 'done',
+        totalAmount: 100.0,
+        items: const [
+          OrderItem(
+            id: 1,
+            productId: 10,
+            productName: 'Mouse Ergonómico',
+            quantity: 1,
+            unitPrice: 100.0,
+            subtotal: 100.0,
+          ),
+        ],
+      );
+
+      final multiUnitOrder = Order(
+        id: 35,
+        odooOrderId: 35,
+        customerId: 1,
+        customerName: 'Test User',
+        orderDate: DateTime(2026, 11, 4, 12, 0),
+        status: 'done',
+        totalAmount: 3600.0,
+        items: const [
+          OrderItem(
+            id: 2,
+            productId: 20,
+            productName: 'ASUS ZenBook',
+            quantity: 3,
+            unitPrice: 1200.0,
+            subtotal: 3600.0,
+          ),
+        ],
+      );
+
+      const fakeUser = User(
+        uid: 1,
+        name: 'Test User',
+        username: 'test@example.com',
+        partnerId: 1,
+      );
+
+      final orderRepo = FakeOrderRepository([singleUnitOrder, multiUnitOrder]);
+      final authRepo = FakeAuthRepository(fakeUser);
+      final cartRepo = FakeCartRepository();
+
+      final authProvider = AuthProvider(
+        LoginUseCase(authRepo),
+        RegisterUseCase(authRepo),
+        GetSavedUserUseCase(authRepo),
+        LogoutUseCase(authRepo),
+      );
+      await authProvider.checkSavedSession();
+
+      final orderProvider = OrderProvider(
+        CreateOrderUseCase(orderRepo, cartRepo),
+        GetOrdersUseCase(orderRepo),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            ChangeNotifierProvider<OrderProvider>.value(value: orderProvider),
+          ],
+          child: const MaterialApp(
+            home: OrderHistoryScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Pedido #34'), findsOneWidget);
+      expect(find.text('1 producto'), findsOneWidget);
+
+      expect(find.text('Pedido #35'), findsOneWidget);
+      expect(find.text('3 productos'), findsOneWidget);
+    });
+
+    testWidgets('Prioriza totalItemsCount del backend en lista inicial (ej. 6 líneas pero 15 productos)', (tester) async {
+      await initializeDateFormatting('es_ES', null);
+
+      final summaryOrder = Order(
+        id: 99,
+        odooOrderId: 99,
+        customerId: 1,
+        customerName: 'Test User',
+        orderDate: DateTime(2026, 11, 4, 15, 0),
+        status: 'done',
+        totalAmount: 4500.0,
+        itemsCount: 6,
+        totalItemsCount: 15, // 15 productos reales acumulados desde GET /api/Orders
+        items: const [],
+      );
+
+      const fakeUser = User(
+        uid: 1,
+        name: 'Test User',
+        username: 'test@example.com',
+        partnerId: 1,
+      );
+
+      final orderRepo = FakeOrderRepository([summaryOrder]);
+      final authRepo = FakeAuthRepository(fakeUser);
+      final cartRepo = FakeCartRepository();
+
+      final authProvider = AuthProvider(
+        LoginUseCase(authRepo),
+        RegisterUseCase(authRepo),
+        GetSavedUserUseCase(authRepo),
+        LogoutUseCase(authRepo),
+      );
+      await authProvider.checkSavedSession();
+
+      final orderProvider = OrderProvider(
+        CreateOrderUseCase(orderRepo, cartRepo),
+        GetOrdersUseCase(orderRepo),
+      );
+
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
+            ChangeNotifierProvider<OrderProvider>.value(value: orderProvider),
+          ],
+          child: const MaterialApp(
+            home: OrderHistoryScreen(),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Pedido #99'), findsOneWidget);
+      expect(find.text('15 productos'), findsOneWidget);
     });
   });
 }

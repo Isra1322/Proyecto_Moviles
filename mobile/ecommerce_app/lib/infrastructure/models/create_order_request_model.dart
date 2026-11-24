@@ -2,12 +2,20 @@ class CreateOrderRequestModel {
   final int customerId;
   final String? customerName;
   final String? customerEmail;
+  final String? paymentMethodId;
+  final String? paymentReference;
+  final String? shippingAddressId;
+  final String? shippingAddressText;
   final List<CreateOrderItemRequestModel> items;
 
   const CreateOrderRequestModel({
     required this.customerId,
     this.customerName,
     this.customerEmail,
+    this.paymentMethodId,
+    this.paymentReference,
+    this.shippingAddressId,
+    this.shippingAddressText,
     required this.items,
   });
 
@@ -16,6 +24,10 @@ class CreateOrderRequestModel {
       'customerId': customerId,
       if (customerName != null) 'customerName': customerName,
       if (customerEmail != null) 'customerEmail': customerEmail,
+      if (paymentMethodId != null) 'paymentMethodId': paymentMethodId,
+      if (paymentReference != null) 'paymentReference': paymentReference,
+      if (shippingAddressId != null) 'shippingAddressId': shippingAddressId,
+      if (shippingAddressText != null) 'shippingAddressText': shippingAddressText,
       'items': items.map((i) => i.toJson()).toList(),
     };
   }

@@ -46,6 +46,20 @@ class ApiClient {
         ));
   }
 
+  Future<dynamic> put(String endpoint, {dynamic body}) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+    return _send(() => _client.put(
+          uri,
+          headers: _headers,
+          body: body != null ? jsonEncode(body) : null,
+        ));
+  }
+
+  Future<dynamic> delete(String endpoint) async {
+    final uri = Uri.parse('$baseUrl$endpoint');
+    return _send(() => _client.delete(uri, headers: _headers));
+  }
+
   Future<dynamic> _send(Future<http.Response> Function() action) async {
     try {
       final response = await action().timeout(ApiConstants.timeout);

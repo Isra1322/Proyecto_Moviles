@@ -132,6 +132,16 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final int displayCount = (order.totalItemsCount != null && order.totalItemsCount! > 0)
+        ? order.totalItemsCount!
+        : (order.items.isNotEmpty
+            ? order.items.fold<int>(0, (sum, i) => sum + i.quantity.toInt())
+            : order.itemsCount);
+
+    final String itemsLabel = displayCount == 1
+        ? '1 producto'
+        : '$displayCount productos';
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       clipBehavior: Clip.antiAlias,
@@ -208,7 +218,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    '${order.itemsCount} producto(s)',
+                    itemsLabel,
                     style: const TextStyle(
                       color: AppColors.textSecondary,
                       fontSize: 13,
@@ -252,5 +262,6 @@ class _OrderCard extends StatelessWidget {
   }
 }
 
-/// Alias para compatibilidad con referencias a OrderListScreen
+/// Alias para compatibilidad con referencias a OrderListScreen y MyOrdersScreen
 typedef OrderListScreen = OrderHistoryScreen;
+typedef MyOrdersScreen = OrderHistoryScreen;

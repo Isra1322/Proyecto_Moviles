@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using ECommerce.Application.Common.Exceptions;
 using ECommerce.Application.Common.Models;
 using ECommerce.Application.DTOs.Orders;
+using ECommerce.Application.Interfaces;
 using ECommerce.Application.UseCases.Orders;
 
 [Authorize]
@@ -16,6 +17,8 @@ public class OrdersController : BaseApiController
     private readonly CreateOrderUseCase _createOrderUseCase;
     private readonly GetOrdersUseCase _getOrdersUseCase;
     private readonly GetOrderByIdUseCase? _getOrderByIdUseCase;
+    private readonly IPaymentMethodService? _paymentMethodService;
+    private readonly IAddressService? _addressService;
     private readonly ILogger<OrdersController> _logger;
 
     [ActivatorUtilitiesConstructor]
@@ -23,19 +26,23 @@ public class OrdersController : BaseApiController
         CreateOrderUseCase createOrderUseCase,
         GetOrdersUseCase getOrdersUseCase,
         GetOrderByIdUseCase getOrderByIdUseCase,
-        ILogger<OrdersController> logger)
+        ILogger<OrdersController> logger,
+        IPaymentMethodService? paymentMethodService = null,
+        IAddressService? addressService = null)
     {
         _createOrderUseCase = createOrderUseCase;
         _getOrdersUseCase = getOrdersUseCase;
         _getOrderByIdUseCase = getOrderByIdUseCase;
         _logger = logger;
+        _paymentMethodService = paymentMethodService;
+        _addressService = addressService;
     }
 
     public OrdersController(
         CreateOrderUseCase createOrderUseCase,
         GetOrdersUseCase getOrdersUseCase,
         ILogger<OrdersController> logger)
-        : this(createOrderUseCase, getOrdersUseCase, null!, logger)
+        : this(createOrderUseCase, getOrdersUseCase, null!, logger, null, null)
     {
     }
 
@@ -72,6 +79,30 @@ public class OrdersController : BaseApiController
             // AISLAMIENTO ESTRICTO: Se fuerza el CustomerId al del usuario autenticado en el token JWT
             var authenticatedPartnerId = GetAuthenticatedPartnerId();
             orderDto.CustomerId = authenticatedPartnerId;
+
+            // Si viene PaymentMethodId pero no PaymentReference, buscar la tarjeta del usuario
+            if (orderDto.PaymentMethodId.HasValue && string.IsNullOrWhiteSpace(orderDto.PaymentReference) && _paymentMethodService != null)
+            {
+                var card = await _paymentMethodService.GetByIdAsync(orderDto.PaymentMethodId.Value, authenticatedPartnerId, cancellationToken);
+                if (card != null)
+                {
+                    orderDto.PaymentReference = $"Pago con {card.CardType} terminada en {card.MaskedCardNumber[^4..]}";
+                }
+            }
+
+            // Si viene ShippingAddressId pero no ShippingAddressText, buscar la dirección del usuario
+            if (orderDto.ShippingAddressId.HasValue && string.IsNullOrWhiteSpace(orderDto.ShippingAddressText) && _addressService != null)
+            {
+                var address = await _addressService.GetByIdAsync(orderDto.ShippingAddressId.Value, authenticatedPartnerId, cancellationToken);
+                if (address != null)
+                {
+                    var parts = new List<string> { address.Title, address.Street, address.City };
+                    if (!string.IsNullOrWhiteSpace(address.StateOrProvince)) parts.Add(address.StateOrProvince);
+                    if (!string.IsNullOrWhiteSpace(address.Reference)) parts.Add($"Ref: {address.Reference}");
+                    if (!string.IsNullOrWhiteSpace(address.Phone)) parts.Add($"Tel: {address.Phone}");
+                    orderDto.ShippingAddressText = string.Join(", ", parts);
+                }
+            }
 
             _logger.LogInformation("Iniciando creación de pedido para cliente ID {CustomerId} con {ItemCount} ítems.", authenticatedPartnerId, orderDto.Items?.Count ?? 0);
 

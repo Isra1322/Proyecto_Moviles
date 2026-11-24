@@ -12,6 +12,8 @@ import 'infrastructure/http/api_client.dart';
 import 'infrastructure/datasources/remote/product_remote_data_source.dart';
 import 'infrastructure/datasources/remote/order_remote_data_source.dart';
 import 'infrastructure/datasources/remote/auth_remote_data_source.dart';
+import 'infrastructure/datasources/remote/payment_service.dart';
+import 'infrastructure/datasources/remote/address_service.dart';
 import 'infrastructure/datasources/local/auth_local_data_source.dart';
 import 'infrastructure/datasources/local/cart_local_data_source.dart';
 import 'infrastructure/repositories_impl/product_repository_impl.dart';
@@ -47,6 +49,8 @@ import 'presentation/providers/auth_provider.dart';
 import 'presentation/providers/product_provider.dart';
 import 'presentation/providers/cart_provider.dart';
 import 'presentation/providers/order_provider.dart';
+import 'presentation/providers/payment_provider.dart';
+import 'presentation/providers/address_provider.dart';
 
 // Rutas
 import 'presentation/routes/app_routes.dart';
@@ -70,6 +74,8 @@ void main() async {
   final productRemoteDataSource = ProductRemoteDataSource(apiClient);
   final orderRemoteDataSource = OrderRemoteDataSource(apiClient);
   final authRemoteDataSource = AuthRemoteDataSource(apiClient);
+  final paymentService = PaymentService(apiClient);
+  final addressService = AddressService(apiClient);
   final authLocalDataSource = AuthLocalDataSource(prefs);
   final cartLocalDataSource = CartLocalDataSource(prefs);
 
@@ -150,6 +156,12 @@ void main() async {
             getOrderByIdUseCase,
           ),
         ),
+        ChangeNotifierProvider(
+          create: (_) => PaymentProvider(paymentService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => AddressProvider(addressService),
+        ),
       ],
       child: const MyApp(),
     ),
@@ -168,7 +180,7 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      initialRoute: AppRoutes.login,
+      initialRoute: AppRoutes.catalog,
       onGenerateRoute: AppRoutes.onGenerateRoute,
       routes: AppRoutes.routes,
     );

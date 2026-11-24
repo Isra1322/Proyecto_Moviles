@@ -36,6 +36,10 @@ class OrderProvider extends ChangeNotifier {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   }) async {
     _createStatus = ViewStatus.loading;
     _errorMessage = null;
@@ -46,6 +50,10 @@ class OrderProvider extends ChangeNotifier {
         cart: cart,
         customerName: customerName,
         customerEmail: customerEmail,
+        paymentMethodId: paymentMethodId,
+        paymentReference: paymentReference,
+        shippingAddressId: shippingAddressId,
+        shippingAddressText: shippingAddressText,
       );
       _createStatus = ViewStatus.success;
       notifyListeners();
@@ -67,7 +75,7 @@ class OrderProvider extends ChangeNotifier {
       final existingMap = {for (var o in _orders) o.id: o};
       _orders = fetchedOrders.map((newOrder) {
         final existing = existingMap[newOrder.id];
-        if (existing != null && newOrder.itemsCount == 0 && existing.itemsCount > 0) {
+        if (existing != null && ((newOrder.itemsCount == 0 && existing.itemsCount > 0) || (newOrder.items.isEmpty && existing.items.isNotEmpty))) {
           return Order(
             id: newOrder.id,
             odooOrderId: newOrder.odooOrderId,
@@ -77,6 +85,7 @@ class OrderProvider extends ChangeNotifier {
             status: newOrder.status,
             totalAmount: newOrder.totalAmount,
             itemsCount: existing.itemsCount,
+            totalItemsCount: newOrder.totalItemsCount ?? existing.totalItemsCount,
             items: existing.items.isNotEmpty ? existing.items : newOrder.items,
           );
         }

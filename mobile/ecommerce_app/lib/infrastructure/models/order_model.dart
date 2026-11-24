@@ -11,6 +11,7 @@ class OrderModel {
   final String? statusName;
   final double totalAmount;
   final int itemsCount;
+  final int? totalItemsCount;
   final List<OrderItemModel> items;
 
   const OrderModel({
@@ -24,6 +25,7 @@ class OrderModel {
     this.statusName,
     required this.totalAmount,
     this.itemsCount = 0,
+    this.totalItemsCount,
     this.items = const [],
   });
 
@@ -93,6 +95,22 @@ class OrderModel {
       parsedItemsCount = itemList.length;
     }
 
+    int? parsedTotalItemsCount;
+    for (final key in [
+      'totalItemsCount',
+      'total_items_count',
+      'TotalItemsCount',
+      'totalQuantity',
+      'total_quantity',
+      'TotalQuantity',
+    ]) {
+      final count = extractCount(json[key]);
+      if (count > 0) {
+        parsedTotalItemsCount = count;
+        break;
+      }
+    }
+
     return OrderModel(
       id: json['id'] as int? ?? 0,
       odooOrderId: json['odooOrderId'] as int?,
@@ -104,6 +122,7 @@ class OrderModel {
       statusName: json['statusName'] as String?,
       totalAmount: parsedTotalAmount,
       itemsCount: parsedItemsCount,
+      totalItemsCount: parsedTotalItemsCount,
       items: itemList,
     );
   }
@@ -121,6 +140,9 @@ class OrderModel {
       'totalAmount': totalAmount,
       'itemsCount': itemsCount,
       'productsCount': itemsCount,
+      'totalItemsCount': totalItemsCount,
+      'total_items_count': totalItemsCount,
+      'totalQuantity': totalItemsCount,
       'items': items.map((i) => i.toJson()).toList(),
     };
   }

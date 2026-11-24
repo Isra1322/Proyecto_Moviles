@@ -25,6 +25,62 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final user = context.read<AuthProvider>().currentUser;
+    final orderProvider = context.read<OrderProvider>();
+    if (user != null &&
+        orderProvider.status == ViewStatus.initial &&
+        !orderProvider.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          orderProvider.loadOrders(user.customerId);
+        }
+      });
+    }
+  }
+
+  Future<void> _navigateToLogin() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (!mounted) return;
+    if (context.read<AuthProvider>().isAuthenticated) {
+      final user = context.read<AuthProvider>().currentUser;
+      if (user != null) {
+        context.read<OrderProvider>().loadOrders(user.customerId);
+      }
+    }
+  }
+
+  Future<void> _navigateToLoginForOrders() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (!mounted) return;
+    if (context.read<AuthProvider>().isAuthenticated) {
+      final user = context.read<AuthProvider>().currentUser;
+      if (user != null) {
+        await context.read<OrderProvider>().loadOrders(user.customerId);
+      }
+      if (!mounted) return;
+      Navigator.pushNamed(context, AppRoutes.orderHistory);
+    }
+  }
+
+  Future<void> _navigateToLoginForAddresses() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (!mounted) return;
+    if (context.read<AuthProvider>().isAuthenticated) {
+      Navigator.pushNamed(context, AppRoutes.addressList);
+    }
+  }
+
+  Future<void> _navigateToLoginForPaymentMethods() async {
+    await Navigator.pushNamed(context, AppRoutes.login);
+    if (!mounted) return;
+    if (context.read<AuthProvider>().isAuthenticated) {
+      Navigator.pushNamed(context, AppRoutes.paymentMethods);
+    }
+  }
+
   String _getUserInitials(String name) {
     if (name.trim().isEmpty) return 'U';
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -39,7 +95,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Cerrar Sesión'),
-        content: const Text('¿Estás seguro de que deseas salir de tu cuenta?'),
+        content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -95,6 +151,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Mi Perfil'),
         elevation: 0,
+        actions: [
+          if (authProvider.isAuthenticated)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Center(
+                child: IconButton(
+                  tooltip: 'Cerrar Sesión',
+                  splashRadius: 22,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
+                  icon: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFFEBEE),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.logout_rounded,
+                      size: 20,
+                      color: Color(0xFFE53935),
+                    ),
+                  ),
+                  onPressed: _handleLogout,
+                ),
+              ),
+            ),
+        ],
       ),
       body: SafeArea(
         child: RefreshIndicator(
@@ -107,57 +190,193 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // 1. Tarjeta de Usuario (Avatar + Nombre + Correo)
-                _buildUserCard(
-                  name: name,
-                  email: email,
-                  customerId: customerId,
-                ),
-                const SizedBox(height: 16),
+                if (!authProvider.isAuthenticated) ...[
+                  // Cabecera estilizada de usuario invitado
+                  _buildGuestCard(),
+                  const SizedBox(height: 20),
 
-                // 2. Resumen Financiero
-                _buildFinancialCard(
-                  totalSpent: totalSpent,
-                  confirmedCount: confirmedOrders.length,
-                  totalOrders: orderProvider.orders.length,
-                  isLoading: orderProvider.isLoading,
-                ),
-                const SizedBox(height: 20),
-
-                // 3. Accesos y Opciones
-                const Text(
-                  'Actividad y Opciones',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                  const Text(
+                    'Actividad y Opciones',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
+                  const SizedBox(height: 10),
 
-                // Acceso directo a Mis Pedidos
-                _buildActionTile(
-                  icon: Icons.receipt_long_outlined,
-                  iconColor: AppColors.primary,
-                  title: 'Mis Pedidos',
-                  subtitle: '${orderProvider.orders.length} pedidos registrados en tu historial',
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.orderHistory),
-                ),
-                const SizedBox(height: 12),
+                  // Mis Pedidos (con redirección al login)
+                  _buildActionTile(
+                    icon: Icons.receipt_long_outlined,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Pedidos',
+                    subtitle:
+                        'Inicia sesión para consultar tus pedidos anteriores',
+                    onTap: _navigateToLoginForOrders,
+                  ),
+                  const SizedBox(height: 8),
 
-                // Botón Cerrar Sesión
-                _buildActionTile(
-                  icon: Icons.logout,
-                  iconColor: AppColors.error,
-                  title: 'Cerrar Sesión',
-                  subtitle: 'Finalizar la sesión actual en este dispositivo',
-                  titleColor: AppColors.error,
-                  onTap: _handleLogout,
-                ),
+                  // Mis Direcciones (con redirección al login)
+                  _buildActionTile(
+                    icon: Icons.location_on_outlined,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Direcciones',
+                    subtitle:
+                        'Inicia sesión para gestionar tus direcciones de entrega',
+                    onTap: _navigateToLoginForAddresses,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Mis Métodos de Pago (con redirección al login)
+                  _buildActionTile(
+                    icon: Icons.credit_card,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Métodos de Pago',
+                    subtitle:
+                        'Inicia sesión para gestionar tus tarjetas de crédito y débito',
+                    onTap: _navigateToLoginForPaymentMethods,
+                  ),
+                ] else ...[
+                  // 1. Tarjeta de Usuario (Avatar + Nombre + Correo)
+                  _buildUserCard(
+                    name: name,
+                    email: email,
+                    customerId: customerId,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // 2. Resumen Financiero
+                  _buildFinancialCard(
+                    totalSpent: totalSpent,
+                    confirmedCount: confirmedOrders.length,
+                    totalOrders: orderProvider.orders.length,
+                    isLoading: orderProvider.isLoading,
+                  ),
+                  const SizedBox(height: 20),
+
+                  // 3. Accesos y Opciones
+                  const Text(
+                    'Actividad y Opciones',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Acceso directo a Mis Pedidos
+                  _buildActionTile(
+                    icon: Icons.receipt_long_outlined,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Pedidos',
+                    subtitle:
+                        '${orderProvider.orders.length} pedidos registrados en tu historial',
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.orderHistory),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Acceso directo a Mis Direcciones
+                  _buildActionTile(
+                    icon: Icons.location_on_outlined,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Direcciones',
+                    subtitle: 'Gestiona tus direcciones de entrega para el checkout',
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.addressList),
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Acceso directo a Mis Métodos de Pago
+                  _buildActionTile(
+                    icon: Icons.credit_card,
+                    iconColor: AppColors.primary,
+                    title: 'Mis Métodos de Pago',
+                    subtitle: 'Gestiona tus tarjetas de crédito y débito',
+                    onTap: () =>
+                        Navigator.pushNamed(context, AppRoutes.paymentMethods),
+                  ),
+                ],
                 const SizedBox(height: 30),
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGuestCard() {
+    return Card(
+      elevation: 1,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 34,
+                  backgroundColor: AppColors.primary.withAlpha(20),
+                  child: const Icon(
+                    Icons.person_outline_rounded,
+                    size: 38,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 16),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bienvenido a E-Commerce',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Explora el catálogo y accede a tu cuenta para comprar.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: _navigateToLogin,
+                icon: const Icon(Icons.login_rounded, size: 20),
+                label: const Text(
+                  'Iniciar Sesión o Registrarse',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -379,36 +598,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
     Color? titleColor,
   }) {
     return Card(
-      elevation: 0.8,
+      elevation: 0.5,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        dense: true,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
         leading: Container(
-          padding: const EdgeInsets.all(10),
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: iconColor.withAlpha(25),
+            color: iconColor.withAlpha(20),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: iconColor, size: 24),
+          alignment: Alignment.center,
+          child: Icon(icon, color: iconColor, size: 20),
         ),
         title: Text(
           title,
           style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
             color: titleColor ?? AppColors.textPrimary,
           ),
         ),
         subtitle: Text(
           subtitle,
           style: const TextStyle(
-            fontSize: 12,
+            fontSize: 11.5,
             color: AppColors.textSecondary,
           ),
         ),
         trailing: Icon(
-          Icons.chevron_right,
-          color: titleColor ?? AppColors.textSecondary,
+          Icons.chevron_right_rounded,
+          size: 20,
+          color: titleColor ?? Colors.grey.shade400,
         ),
         onTap: onTap,
       ),

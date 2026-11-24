@@ -7,6 +7,10 @@ abstract class IOrderRepository {
     required Cart cart,
     String? customerName,
     String? customerEmail,
+    String? paymentMethodId,
+    String? paymentReference,
+    String? shippingAddressId,
+    String? shippingAddressText,
   });
 
   Future<List<Order>> getOrdersByCustomer(int customerId);

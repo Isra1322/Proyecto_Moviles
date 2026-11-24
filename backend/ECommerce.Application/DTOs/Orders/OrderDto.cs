@@ -30,6 +30,15 @@ public class OrderDto
     [JsonPropertyName("products_count")]
     public int ProductsCountSnake => ItemsCount;
 
+    [JsonPropertyName("totalItemsCount")]
+    public int TotalItemsCount { get; set; }
+
+    [JsonPropertyName("total_items_count")]
+    public int TotalItemsCountSnake => TotalItemsCount;
+
+    [JsonPropertyName("totalQuantity")]
+    public int TotalQuantity => TotalItemsCount;
+
     [JsonPropertyName("order_line")]
     public int[] OrderLine => Enumerable.Range(0, ItemsCount).ToArray();
 

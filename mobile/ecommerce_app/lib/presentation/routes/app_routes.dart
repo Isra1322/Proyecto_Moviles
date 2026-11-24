@@ -7,6 +7,8 @@ import '../screens/main_navigation_screen.dart';
 import '../screens/catalog/categories_screen.dart';
 import '../screens/catalog/product_detail_screen.dart';
 import '../screens/profile/profile_screen.dart';
+import '../screens/address/address_list_screen.dart';
+import '../screens/payment/payment_methods_screen.dart';
 import '../screens/cart/cart_screen.dart';
 import '../screens/orders/order_history_screen.dart';
 import '../screens/orders/order_detail_screen.dart';
@@ -18,6 +20,8 @@ class AppRoutes {
   static const String catalog = '/catalog';
   static const String categories = '/categories';
   static const String profile = '/profile';
+  static const String addressList = '/address-list';
+  static const String paymentMethods = '/payment-methods';
   static const String productDetail = '/product-detail';
   static const String cart = '/cart';
   static const String orderHistory = '/order-history';
@@ -30,6 +34,8 @@ class AppRoutes {
         catalog: (_) => const MainNavigationScreen(),
         categories: (_) => const CategoriesScreen(),
         profile: (_) => const ProfileScreen(),
+        addressList: (_) => const AddressListScreen(),
+        paymentMethods: (_) => const PaymentMethodsScreen(),
         cart: (_) => const CartScreen(),
         orderHistory: (_) => const OrderHistoryScreen(),
       };

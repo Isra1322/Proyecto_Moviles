@@ -15,6 +15,8 @@ public static class DependencyInjection
         services.Configure<OdooSettings>(configuration.GetSection(OdooSettings.SectionName));
 
         services.AddSingleton<ICustomerCredentialStore, CustomerCredentialStore>();
+        services.AddSingleton<IPaymentMethodService, PaymentMethodService>();
+        services.AddSingleton<IAddressService, AddressService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         services.AddHttpClient<IOdooService, OdooService>((serviceProvider, client) =>

@@ -266,10 +266,16 @@ public class OdooServiceOrderTests
             .Returns<HttpRequestMessage, CancellationToken>(async (req, ct) =>
             {
                 sentRequests.Add(req);
-                if (req.Content != null)
+                if (req.Content != null && req.RequestUri?.AbsolutePath.Contains("sale.order/") == true)
                 {
                     capturedRequestBody = await req.Content.ReadAsStringAsync(ct);
                 }
+
+                if (req.RequestUri?.AbsolutePath.Contains("sale.order.line") == true)
+                {
+                    return JsonResponse("[{\"id\": 101, \"order_id\": [10, \"SO010\"], \"product_uom_qty\": 5.0}, {\"id\": 102, \"order_id\": [10, \"SO010\"], \"product_uom_qty\": 3.0}, {\"id\": 103, \"order_id\": [11, \"SO011\"], \"product_uom_qty\": 2.0}]");
+                }
+
                 return JsonResponse("[{\"id\": 10, \"name\": \"SO010\", \"date_order\": \"2026-11-12\", \"amount_total\": 100.0, \"state\": \"sale\", \"order_line\": [101, 102]}, {\"id\": 11, \"name\": \"SO011\", \"date_order\": \"2026-11-12\", \"amount_total\": 50.0, \"state\": \"draft\", \"order_line\": [103]}]");
             });
 
@@ -279,9 +285,10 @@ public class OdooServiceOrderTests
         // Act
         var result = await service.GetOrdersByCustomerAsync(7);
 
-        // Assert: Exactly ONE HTTP request is sent (No N+1 queries!)
-        sentRequests.Should().HaveCount(1);
+        // Assert: Exactly TWO batch requests are sent (1 for orders + 1 batch for lines - No N+1 queries!)
+        sentRequests.Should().HaveCount(2);
         sentRequests[0].RequestUri?.AbsolutePath.Should().EndWith("/json/2/sale.order/search_read");
+        sentRequests[1].RequestUri?.AbsolutePath.Should().EndWith("/json/2/sale.order.line/search_read");
 
         // Inspect request body to ensure fields include order_line
         capturedRequestBody.Should().NotBeNull();
@@ -298,6 +305,7 @@ public class OdooServiceOrderTests
         result[0].Status.Should().Be(OrderStatus.Confirmed);
         result[0].TotalAmount.Should().Be(100.0m);
         result[0].ItemsCount.Should().Be(2);
+        result[0].TotalItemsCount.Should().Be(8);
         result[0].ProductsCount.Should().Be(2);
         result[0].Items.Should().BeEmpty();
 
@@ -306,6 +314,7 @@ public class OdooServiceOrderTests
         result[1].Status.Should().Be(OrderStatus.Draft);
         result[1].TotalAmount.Should().Be(50.0m);
         result[1].ItemsCount.Should().Be(1);
+        result[1].TotalItemsCount.Should().Be(2);
         result[1].ProductsCount.Should().Be(1);
         result[1].Items.Should().BeEmpty();
     }
@@ -337,17 +346,19 @@ public class OdooServiceOrderTests
     {
         // Arrange
         var (service, sentRequests) = CreateServiceWithResponses(
-            JsonResponse("[{\"id\": 20, \"name\": \"SO020\", \"date_order\": \"2026-11-12\", \"amount_total\": 75.0, \"state\": \"sale\", \"order_line\": [1]}]")
+            JsonResponse("[{\"id\": 20, \"name\": \"SO020\", \"date_order\": \"2026-11-12\", \"amount_total\": 75.0, \"state\": \"sale\", \"order_line\": [1]}]"),
+            JsonResponse("[{\"id\": 1, \"order_id\": [20, \"SO020\"], \"product_uom_qty\": 4.0}]")
         );
 
         // Act
         var result = await service.GetOrdersByPartnerAsync(7);
 
         // Assert
-        sentRequests.Should().HaveCount(1);
+        sentRequests.Should().HaveCount(2);
         result.Should().HaveCount(1);
         result[0].Id.Should().Be(20);
         result[0].ItemsCount.Should().Be(1);
+        result[0].TotalItemsCount.Should().Be(4);
         result[0].CustomerId.Should().Be(7);
     }
 

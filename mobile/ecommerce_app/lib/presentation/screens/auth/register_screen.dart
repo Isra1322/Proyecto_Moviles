@@ -7,7 +7,7 @@ export '../../../core/utils/email_input_formatter.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/custom_button.dart';
 import '../../widgets/common/custom_text_field.dart';
-import '../catalog/catalog_screen.dart';
+import '../../routes/app_routes.dart';
 
 /// Formateador para el campo "Nombre Completo":
 /// - No permitir iniciar el texto con un espacio en blanco.
@@ -129,10 +129,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
           backgroundColor: AppColors.success,
         ),
       );
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const CatalogScreen()),
-        (_) => false,
-      );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.catalog,
+          (_) => false,
+        );
+      }
     }
   }
 

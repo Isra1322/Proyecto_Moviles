@@ -13,6 +13,7 @@ import '../../providers/cart_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../widgets/common/loading_indicator.dart';
 import '../../widgets/common/error_view.dart';
+import '../../widgets/common/auth_guard_dialog.dart';
 import '../../widgets/cart/cart_badge_icon.dart';
 import '../../routes/app_routes.dart';
 
@@ -80,6 +81,12 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Future<void> _addToCart() async {
+    final authProvider = context.read<AuthProvider>();
+    if (!authProvider.isAuthenticated) {
+      final didLogin = await promptLoginGuard(context);
+      if (!didLogin || !mounted) return;
+    }
+
     final product = context.read<ProductProvider>().selectedProduct;
     if (product == null) return;
 

@@ -44,19 +44,53 @@ class _LoginScreenState extends State<LoginScreen> {
         );
 
     if (success && mounted) {
-      Navigator.of(context).pushNamedAndRemoveUntil(
-        AppRoutes.catalog,
-        (_) => false,
-      );
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.catalog,
+          (_) => false,
+        );
+      }
+    }
+  }
+
+  Future<void> _navigateToRegister() async {
+    final registered = await Navigator.pushNamed(
+      context,
+      AppRoutes.register,
+    );
+    if (!mounted) return;
+    if (registered == true && context.read<AuthProvider>().isAuthenticated) {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop(true);
+      } else {
+        Navigator.of(context).pushNamedAndRemoveUntil(
+          AppRoutes.catalog,
+          (_) => false,
+        );
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+    final canPop = Navigator.of(context).canPop();
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      appBar: canPop
+          ? AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              leading: IconButton(
+                icon:
+                    const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            )
+          : null,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -201,9 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                       ),
                       TextButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, AppRoutes.register);
-                        },
+                        onPressed: _navigateToRegister,
                         child: const Text(
                           'Regístrate aquí',
                           style: TextStyle(
@@ -215,6 +247,27 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ],
                   ),
+                  if (!canPop) ...[
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: () {
+                        Navigator.of(context).pushNamedAndRemoveUntil(
+                          AppRoutes.catalog,
+                          (_) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.explore_outlined,
+                          size: 18, color: AppColors.textSecondary),
+                      label: const Text(
+                        'Continuar como invitado',
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
