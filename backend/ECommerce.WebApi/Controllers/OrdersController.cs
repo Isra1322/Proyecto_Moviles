@@ -17,7 +17,6 @@ public class OrdersController : BaseApiController
     private readonly CreateOrderUseCase _createOrderUseCase;
     private readonly GetOrdersUseCase _getOrdersUseCase;
     private readonly GetOrderByIdUseCase? _getOrderByIdUseCase;
-    private readonly IPaymentMethodService? _paymentMethodService;
     private readonly IAddressService? _addressService;
     private readonly ILogger<OrdersController> _logger;
 
@@ -27,14 +26,12 @@ public class OrdersController : BaseApiController
         GetOrdersUseCase getOrdersUseCase,
         GetOrderByIdUseCase getOrderByIdUseCase,
         ILogger<OrdersController> logger,
-        IPaymentMethodService? paymentMethodService = null,
         IAddressService? addressService = null)
     {
         _createOrderUseCase = createOrderUseCase;
         _getOrdersUseCase = getOrdersUseCase;
         _getOrderByIdUseCase = getOrderByIdUseCase;
         _logger = logger;
-        _paymentMethodService = paymentMethodService;
         _addressService = addressService;
     }
 
@@ -42,7 +39,7 @@ public class OrdersController : BaseApiController
         CreateOrderUseCase createOrderUseCase,
         GetOrdersUseCase getOrdersUseCase,
         ILogger<OrdersController> logger)
-        : this(createOrderUseCase, getOrdersUseCase, null!, logger, null, null)
+        : this(createOrderUseCase, getOrdersUseCase, null!, logger, null)
     {
     }
 
@@ -80,14 +77,10 @@ public class OrdersController : BaseApiController
             var authenticatedPartnerId = GetAuthenticatedPartnerId();
             orderDto.CustomerId = authenticatedPartnerId;
 
-            // Si viene PaymentMethodId pero no PaymentReference, buscar la tarjeta del usuario
-            if (orderDto.PaymentMethodId.HasValue && string.IsNullOrWhiteSpace(orderDto.PaymentReference) && _paymentMethodService != null)
+            // Si no se especificó referencia de pago, asignar referencia por defecto de Stripe
+            if (string.IsNullOrWhiteSpace(orderDto.PaymentReference))
             {
-                var card = await _paymentMethodService.GetByIdAsync(orderDto.PaymentMethodId.Value, authenticatedPartnerId, cancellationToken);
-                if (card != null)
-                {
-                    orderDto.PaymentReference = $"Pago con {card.CardType} terminada en {card.MaskedCardNumber[^4..]}";
-                }
+                orderDto.PaymentReference = "Pago con Tarjeta de Crédito / Débito (Stripe)";
             }
 
             // Si viene ShippingAddressId pero no ShippingAddressText, buscar la dirección del usuario

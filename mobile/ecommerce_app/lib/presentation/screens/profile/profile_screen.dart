@@ -73,14 +73,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _navigateToLoginForPaymentMethods() async {
-    await Navigator.pushNamed(context, AppRoutes.login);
-    if (!mounted) return;
-    if (context.read<AuthProvider>().isAuthenticated) {
-      Navigator.pushNamed(context, AppRoutes.paymentMethods);
-    }
-  }
-
   String _getUserInitials(String name) {
     if (name.trim().isEmpty) return 'U';
     final parts = name.trim().split(RegExp(r'\s+'));
@@ -240,18 +232,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         'Inicia sesión para gestionar tus direcciones de entrega',
                     onTap: _navigateToLoginForAddresses,
                   ),
-                  const SizedBox(height: 8),
-
-                  // Mis Métodos de Pago (con redirección al login)
-                  _buildActionTile(
-                    context: context,
-                    icon: Icons.credit_card,
-                    iconColor: AppColors.primary,
-                    title: 'Mis Métodos de Pago',
-                    subtitle:
-                        'Inicia sesión para gestionar tus tarjetas de crédito y débito',
-                    onTap: _navigateToLoginForPaymentMethods,
-                  ),
                 ] else ...[
                   // 1. Tarjeta de Usuario (Avatar + Nombre + Correo)
                   _buildUserCard(
@@ -304,18 +284,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: 'Gestiona tus direcciones de entrega para el checkout',
                     onTap: () =>
                         Navigator.pushNamed(context, AppRoutes.addressList),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Acceso directo a Mis Métodos de Pago
-                  _buildActionTile(
-                    context: context,
-                    icon: Icons.credit_card,
-                    iconColor: AppColors.primary,
-                    title: 'Mis Métodos de Pago',
-                    subtitle: 'Gestiona tus tarjetas de crédito y débito',
-                    onTap: () =>
-                        Navigator.pushNamed(context, AppRoutes.paymentMethods),
                   ),
                 ],
                 const SizedBox(height: 30),

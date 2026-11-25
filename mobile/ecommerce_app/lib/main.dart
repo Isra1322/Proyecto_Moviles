@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -59,6 +60,15 @@ import 'presentation/routes/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Asignar clave pública de Stripe (Test)
+  Stripe.publishableKey =
+      "pk_test_51UfXT3RuFqpQHde6MCO1ajpTWvNHdtRTRMLNUPtk70AGJfX4EzuG154GVociMsBAIJpKNP7icDvqgekKmGUi6vSh00j4P3bSkC";
+
+  try {
+    await Stripe.instance.applySettings();
+  } catch (e) {
+    debugPrint("Aviso al inicializar Stripe: $e");
+  }
   await initializeDateFormatting('es_ES', null);
   await initializeDateFormatting('es', null);
 

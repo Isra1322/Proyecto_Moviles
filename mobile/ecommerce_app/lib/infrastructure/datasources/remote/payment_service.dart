@@ -48,4 +48,32 @@ class PaymentService {
     final data = await _client.delete('${ApiConstants.paymentMethods}/$id');
     return data == true || (data is Map && data['success'] == true);
   }
+
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async {
+    final body = <String, dynamic>{
+      'amount': amount,
+      'currency': currency,
+    };
+    if (customerEmail != null && customerEmail.isNotEmpty) {
+      body['customerEmail'] = customerEmail;
+    }
+    if (customerName != null && customerName.isNotEmpty) {
+      body['customerName'] = customerName;
+    }
+
+    final data = await _client.post(
+      ApiConstants.createPaymentIntent,
+      body: body,
+    );
+
+    if (data is Map<String, dynamic>) {
+      return data;
+    }
+    throw const FormatException('Respuesta inesperada al crear PaymentIntent.');
+  }
 }

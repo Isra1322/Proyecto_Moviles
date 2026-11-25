@@ -147,6 +147,21 @@ class MockPaymentService implements PaymentService {
     methods.removeWhere((m) => m.id == id);
     return true;
   }
+
+  @override
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async =>
+      {
+        'clientSecret': 'pi_test_secret_123',
+        'paymentIntentId': 'pi_test_123456789',
+        'customerId': 'cus_test_123',
+        'ephemeralKeySecret': 'ek_test_secret_123',
+        'publishableKey': 'pk_test_mock',
+      };
 }
 
 void main() {

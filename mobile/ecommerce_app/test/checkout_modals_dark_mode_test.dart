@@ -34,6 +34,21 @@ class _MockPaymentService implements PaymentService {
 
   @override
   Future<bool> deletePaymentMethod(String id) async => true;
+
+  @override
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async =>
+      {
+        'clientSecret': 'pi_test_secret_123',
+        'paymentIntentId': 'pi_test_123456789',
+        'customerId': 'cus_test_123',
+        'ephemeralKeySecret': 'ek_test_secret_123',
+        'publishableKey': 'pk_test_mock',
+      };
 }
 
 class _MockAddressService implements AddressService {

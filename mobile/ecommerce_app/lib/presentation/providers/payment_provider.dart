@@ -98,6 +98,37 @@ class PaymentProvider extends ChangeNotifier {
     }
   }
 
+  Future<Map<String, dynamic>?> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async {
+    _status = ViewStatus.loading;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await _paymentService.createPaymentIntent(
+        amount: amount,
+        currency: currency,
+        customerEmail: customerEmail,
+        customerName: customerName,
+      );
+      _status = ViewStatus.success;
+      notifyListeners();
+      return result;
+    } catch (e) {
+      _errorMessage = e
+          .toString()
+          .replaceAll('Exception: ', '')
+          .replaceAll('ServerException: ', '');
+      _status = ViewStatus.error;
+      notifyListeners();
+      return null;
+    }
+  }
+
   void reset() {
     _status = ViewStatus.initial;
     _paymentMethods = [];

@@ -129,6 +129,21 @@ class MockPaymentService implements PaymentService {
 
   @override
   Future<bool> deletePaymentMethod(String id) async => true;
+
+  @override
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async =>
+      {
+        'clientSecret': 'pi_test_secret_123',
+        'paymentIntentId': 'pi_test_123456789',
+        'customerId': 'cus_test_123',
+        'ephemeralKeySecret': 'ek_test_secret_123',
+        'publishableKey': 'pk_test_mock',
+      };
 }
 
 class MockAuthRepo implements IAuthRepository {
@@ -483,7 +498,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verificar que la orden se creó con los datos de pago y dirección
-      expect(orderRepo.lastPaymentMethodId, 'card-1');
+      expect(orderRepo.lastPaymentReference, contains('Stripe'));
       expect(orderRepo.lastShippingAddressId, 'addr-1');
       expect(orderRepo.lastShippingAddressText, contains('Av. Amazonas N24-196'));
     });

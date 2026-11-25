@@ -138,6 +138,21 @@ class MockPaymentService implements PaymentService {
     methods.removeWhere((m) => m.id == id);
     return methods.length < initialCount;
   }
+
+  @override
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required double amount,
+    String currency = 'usd',
+    String? customerEmail,
+    String? customerName,
+  }) async =>
+      {
+        'clientSecret': 'pi_test_secret_123',
+        'paymentIntentId': 'pi_test_123456789',
+        'customerId': 'cus_test_123',
+        'ephemeralKeySecret': 'ek_test_secret_123',
+        'publishableKey': 'pk_test_mock',
+      };
 }
 
 void main() {
@@ -271,7 +286,7 @@ void main() {
   });
 
   group('CartScreen Payment Integration Tests', () {
-    testWidgets('Muestra tarjeta seleccionada y permite confirmar pedido asociando método de pago', (tester) async {
+    testWidgets('Muestra tarjeta informativa de Stripe fijamente y ejecuta flujo Stripe al confirmar pedido', (tester) async {
       final authRepo = MockAuthRepo(
         user: const User(uid: 1, name: 'Juan Perez', username: 'juan@correo.com', partnerId: 42),
       );
@@ -298,9 +313,8 @@ void main() {
       final orderRepo = MockOrderRepo();
       final orderProvider = OrderProvider(CreateOrderUseCase(orderRepo, cartRepo), GetOrdersUseCase(orderRepo));
 
-      final paymentService = MockPaymentService([testCard1]);
+      final paymentService = MockPaymentService([]);
       final paymentProvider = PaymentProvider(paymentService);
-      await paymentProvider.loadPaymentMethods();
 
       await tester.pumpWidget(
         MultiProvider(
@@ -322,11 +336,18 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      // Verificar que se ve la sección de Método de Pago y la tarjeta seleccionada
+      // Verificar que se ve la tarjeta informativa moderna de Stripe
       expect(find.text('Método de Pago'), findsOneWidget);
-      expect(find.text('**** **** **** 4242'), findsOneWidget);
-      expect(find.text('Juan Perez • Exp: 12/28'), findsOneWidget);
-      expect(find.text('Cambiar'), findsOneWidget);
+      expect(find.text('Tarjeta de Crédito / Débito'), findsOneWidget);
+      expect(find.text('Procesado de forma segura mediante Stripe'), findsOneWidget);
+      expect(find.text('VISA'), findsOneWidget);
+      expect(find.text('MC'), findsOneWidget);
+      expect(find.text('AMEX'), findsOneWidget);
+
+      // No debe existir botón "Cambiar" ni selectores locales
+      expect(find.text('Cambiar'), findsNothing);
+      expect(find.text('No tienes tarjetas registradas para pagar.'), findsNothing);
+      expect(find.text('Agregar tarjeta para pagar'), findsNothing);
 
       // Confirmar Pedido debe estar disponible
       final confirmBtn = find.widgetWithText(ElevatedButton, 'Confirmar Pedido');
@@ -334,68 +355,8 @@ void main() {
       await tester.tap(confirmBtn);
       await tester.pumpAndSettle();
 
-      // Verificar que la orden se creó con los datos de pago
-      expect(orderRepo.lastPaymentMethodId, 'card-1');
-      expect(orderRepo.lastPaymentReference, 'Pago con Visa terminada en 4242');
-    });
-
-    testWidgets('Deshabilita Confirmar Pedido cuando usuario autenticado no tiene tarjetas registradas', (tester) async {
-      final authRepo = MockAuthRepo(
-        user: const User(uid: 1, name: 'Juan Perez', username: 'juan@correo.com', partnerId: 42),
-      );
-      final authProvider = AuthProvider(
-        LoginUseCase(authRepo),
-        RegisterUseCase(authRepo),
-        GetSavedUserUseCase(authRepo),
-        LogoutUseCase(authRepo),
-      );
-      authProvider.login('juan@correo.com', '123456');
-
-      final cartRepo = MockCartRepo(const Cart(items: [
-        CartItem(product: testProduct, quantity: 1, unitPrice: 85.0),
-      ]));
-      final cartProvider = CartProvider(
-        GetCartUseCase(cartRepo),
-        AddToCartUseCase(cartRepo),
-        UpdateCartQuantityUseCase(cartRepo),
-        RemoveFromCartUseCase(cartRepo),
-        ClearCartUseCase(cartRepo),
-      );
-      await cartProvider.loadCart();
-
-      final orderRepo = MockOrderRepo();
-      final orderProvider = OrderProvider(CreateOrderUseCase(orderRepo, cartRepo), GetOrdersUseCase(orderRepo));
-
-      // Sin tarjetas
-      final paymentService = MockPaymentService([]);
-      final paymentProvider = PaymentProvider(paymentService);
-      await paymentProvider.loadPaymentMethods();
-
-      await tester.pumpWidget(
-        MultiProvider(
-          providers: [
-            ChangeNotifierProvider.value(value: authProvider),
-            ChangeNotifierProvider.value(value: cartProvider),
-            ChangeNotifierProvider.value(value: orderProvider),
-            ChangeNotifierProvider.value(value: paymentProvider),
-          ],
-          child: MaterialApp(
-            home: const CartScreen(),
-          ),
-        ),
-      );
-
-      await tester.pumpAndSettle();
-
-      // Verificar mensaje y botón de agregar tarjeta
-      expect(find.text('No tienes tarjetas registradas para pagar.'), findsOneWidget);
-      expect(find.text('Agregar tarjeta para pagar'), findsOneWidget);
-
-      // El botón 'Confirmar Pedido' debe estar deshabilitado (ElevatedButton con onPressed == null)
-      final elevatedButton = tester.widget<ElevatedButton>(
-        find.widgetWithText(ElevatedButton, 'Confirmar Pedido'),
-      );
-      expect(elevatedButton.onPressed, isNull);
+      // Verificar que la orden se creó con la referencia de Stripe
+      expect(orderRepo.lastPaymentReference, contains('Stripe'));
     });
   });
 
@@ -474,7 +435,7 @@ void main() {
   });
 
   group('PaymentMethodsScreen & ProfileScreen Integration Tests', () {
-    testWidgets('ProfileScreen muestra opción Mis Métodos de Pago', (tester) async {
+    testWidgets('ProfileScreen no muestra opción Mis Métodos de Pago tras delegar a Stripe', (tester) async {
       final authRepo = MockAuthRepo(
         user: const User(uid: 1, name: 'Juan Perez', username: 'juan@correo.com', partnerId: 42),
       );
@@ -504,9 +465,9 @@ void main() {
 
       await tester.pumpAndSettle();
 
-      expect(find.text('Mis Métodos de Pago'), findsOneWidget);
-      expect(find.text('Gestiona tus tarjetas de crédito y débito'), findsOneWidget);
-      expect(find.byIcon(Icons.credit_card), findsOneWidget);
+      expect(find.text('Mis Métodos de Pago'), findsNothing);
+      expect(find.text('Mis Pedidos'), findsOneWidget);
+      expect(find.text('Mis Direcciones'), findsOneWidget);
     });
 
     testWidgets('PaymentMethodsScreen muestra lista de tarjetas, badge Predeterminada y diálogo de eliminación', (tester) async {
