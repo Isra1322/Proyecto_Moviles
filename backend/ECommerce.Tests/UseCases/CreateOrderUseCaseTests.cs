@@ -3,6 +3,7 @@ namespace ECommerce.Tests.UseCases;
 using FluentAssertions;
 using Moq;
 using ECommerce.Application.DTOs.Orders;
+using ECommerce.Application.DTOs.Products;
 using ECommerce.Application.Interfaces;
 using ECommerce.Application.UseCases.Orders;
 using ECommerce.Domain.Enums;
@@ -90,6 +91,31 @@ public class CreateOrderUseCaseTests
         // Assert
         await act.Should().ThrowAsync<ArgumentException>()
             .WithMessage("*al menos un producto*");
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_WhenProductHasZeroStock_ThrowsInvalidOperationException()
+    {
+        // Arrange
+        var request = new CreateOrderDto
+        {
+            CustomerId = 7,
+            Items = new List<CreateOrderItemDto>
+            {
+                new() { ProductId = 1, Quantity = 2, UnitPrice = 50m }
+            }
+        };
+
+        _odooServiceMock
+            .Setup(s => s.GetProductByIdAsync(1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ProductDto { Id = 1, Name = "Producto Agotado", Stock = 0 });
+
+        // Act
+        var act = async () => await _useCase.ExecuteAsync(request);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*no tiene stock disponible*");
     }
 }
 

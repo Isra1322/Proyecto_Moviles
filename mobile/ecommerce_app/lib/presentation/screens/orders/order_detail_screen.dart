@@ -110,54 +110,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Widget _buildStatusStampBadge(BuildContext context) {
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
-    final statusLower = order.status.toLowerCase();
-    final bool isConfirmed = statusLower == 'confirmado' ||
-        statusLower == 'confirmed' ||
-        statusLower == 'sale' ||
-        statusLower == 'done' ||
-        statusLower == 'realizado' ||
-        statusLower == '3' ||
-        statusLower == '4';
-
-    final Color bgColor = isConfirmed
-        ? (isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9))
-        : (isDark ? const Color(0xFF3E2723) : const Color(0xFFFFF8E1));
-    final Color borderColor = isConfirmed
-        ? (isDark ? const Color(0xFF2E7D32) : const Color(0xFFA5D6A7))
-        : (isDark ? const Color(0xFFF57F17) : const Color(0xFFFFE082));
-    final Color textColor = isConfirmed
-        ? (isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32))
-        : (isDark ? const Color(0xFFFFD54F) : const Color(0xFFF57F17));
-    final IconData icon = isConfirmed ? Icons.verified_rounded : Icons.pending_actions_rounded;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: borderColor, width: 1.2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 15, color: textColor),
-          const SizedBox(width: 5),
-          Text(
-            order.displayStatus.toUpperCase(),
-            style: TextStyle(
-              color: textColor,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
@@ -315,49 +267,42 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Nombre o Logo de la tienda y Sello de estado
+        // Nombre o Logo de la tienda
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 20),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.storefront_rounded,
+                color: Color(0xFF2196F3),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 20),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.storefront_rounded,
-                    color: Color(0xFF2196F3),
-                    size: 22,
+                Text(
+                  'E-Commerce Móvil',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
-                const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'E-Commerce Móvil',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        color: isDark ? Colors.white : AppColors.textPrimary,
-                      ),
-                    ),
-                    Text(
-                      'Comprobante de Pedido',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: isDark ? Colors.white70 : AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
+                Text(
+                  'Comprobante de Pedido',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  ),
                 ),
               ],
             ),
-            _buildStatusStampBadge(context),
           ],
         ),
         const SizedBox(height: 16),

@@ -7,6 +7,7 @@ class User {
   final String? sessionId;
   final String? accessToken;
   final bool isAuthenticated;
+  final bool requiresVerification;
 
   const User({
     required this.uid,
@@ -17,6 +18,7 @@ class User {
     this.sessionId,
     this.accessToken,
     this.isAuthenticated = true,
+    this.requiresVerification = false,
   });
 
   User copyWith({
@@ -28,6 +30,7 @@ class User {
     String? sessionId,
     String? accessToken,
     bool? isAuthenticated,
+    bool? requiresVerification,
   }) {
     return User(
       uid: uid ?? this.uid,
@@ -38,6 +41,7 @@ class User {
       sessionId: sessionId ?? this.sessionId,
       accessToken: accessToken ?? this.accessToken,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
+      requiresVerification: requiresVerification ?? this.requiresVerification,
     );
   }
 

@@ -97,6 +97,7 @@ class RegisterResponseModel {
   final String email;
   final String? accessToken;
   final String? message;
+  final bool requiresVerification;
 
   const RegisterResponseModel({
     required this.success,
@@ -105,16 +106,18 @@ class RegisterResponseModel {
     required this.email,
     this.accessToken,
     this.message,
+    this.requiresVerification = false,
   });
 
   factory RegisterResponseModel.fromJson(Map<String, dynamic> json) {
     return RegisterResponseModel(
-      success: json['success'] as bool? ?? false,
+      success: json['success'] as bool? ?? (json.containsKey('requiresVerification') ? true : false),
       partnerId: json['partnerId'] as int? ?? 0,
       name: json['name'] as String? ?? '',
       email: json['email'] as String? ?? '',
       accessToken: json['accessToken'] as String?,
       message: json['message'] as String?,
+      requiresVerification: json['requiresVerification'] as bool? ?? false,
     );
   }
 
@@ -126,6 +129,7 @@ class RegisterResponseModel {
       'email': email,
       'accessToken': accessToken,
       'message': message,
+      'requiresVerification': requiresVerification,
     };
   }
 }

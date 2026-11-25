@@ -40,6 +40,12 @@ public class CreateOrderUseCase
             {
                 throw new ArgumentException("El precio unitario no puede ser negativo.", nameof(orderDto));
             }
+
+            var product = await _odooService.GetProductByIdAsync(item.ProductId, cancellationToken);
+            if (product != null && product.Stock <= 0)
+            {
+                throw new InvalidOperationException($"El producto '{product.Name}' no tiene stock disponible.");
+            }
         }
 
         return await _odooService.CreateOrderAsync(orderDto, cancellationToken);

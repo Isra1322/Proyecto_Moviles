@@ -213,8 +213,8 @@ void main() {
       expect(find.text('Referencia Odoo: #104'), findsOneWidget);
       expect(find.text('Cliente: Sebastián Andrade'), findsOneWidget);
 
-      // Sello de estado
-      expect(find.text('CONFIRMADO'), findsOneWidget);
+      // Sello de estado oculto en la pantalla de detalle
+      expect(find.text('CONFIRMADO'), findsNothing);
 
       // Líneas divisorias punteadas
       expect(find.byType(DottedDivider), findsNWidgets(2));

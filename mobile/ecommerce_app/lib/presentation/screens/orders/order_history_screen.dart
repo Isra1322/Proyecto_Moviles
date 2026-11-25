@@ -114,23 +114,6 @@ class _OrderCard extends StatelessWidget {
 
   const _OrderCard({required this.order});
 
-  Color _statusColor() {
-    switch (order.status.toLowerCase()) {
-      case 'confirmado':
-      case 'confirmed':
-      case '3':
-      case 'done':
-      case '4':
-        return AppColors.success;
-      case 'cancelado':
-      case 'cancelled':
-      case '5':
-        return AppColors.error;
-      default:
-        return AppColors.warning;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final int displayCount = (order.totalItemsCount != null && order.totalItemsCount! > 0)
@@ -161,35 +144,12 @@ class _OrderCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Pedido #${order.id}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _statusColor().withAlpha(30),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      order.displayStatus,
-                      style: TextStyle(
-                        color: _statusColor(),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
+              Text(
+                'Pedido #${order.id}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               const SizedBox(height: 8),
               Row(
@@ -280,6 +240,7 @@ class _OrderCard extends StatelessWidget {
   }
 }
 
-/// Alias para compatibilidad con referencias a OrderListScreen y MyOrdersScreen
+/// Alias para compatibilidad con referencias a OrderListScreen, MyOrdersScreen y OrdersScreen
 typedef OrderListScreen = OrderHistoryScreen;
 typedef MyOrdersScreen = OrderHistoryScreen;
+typedef OrdersScreen = OrderHistoryScreen;

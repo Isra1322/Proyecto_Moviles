@@ -6,10 +6,12 @@ using ECommerce.Application.Interfaces;
 public class LoginUseCase
 {
     private readonly IOdooService _odooService;
+    private readonly IPendingRegistrationService _pendingRegistrationService;
 
-    public LoginUseCase(IOdooService odooService)
+    public LoginUseCase(IOdooService odooService, IPendingRegistrationService pendingRegistrationService)
     {
         _odooService = odooService;
+        _pendingRegistrationService = pendingRegistrationService;
     }
 
     public async Task<LoginResponseDto> ExecuteAsync(LoginRequestDto request, CancellationToken cancellationToken = default)
@@ -32,7 +34,16 @@ public class LoginUseCase
             };
         }
 
+        // Si un usuario registrado pendiente o con correo no confirmado intenta hacer login:
+        if (await _pendingRegistrationService.IsEmailPendingAsync(request.Username))
+        {
+            return new LoginResponseDto
+            {
+                IsAuthenticated = false,
+                Message = "Debes verificar tu correo antes de iniciar sesión"
+            };
+        }
+
         return await _odooService.AuthenticateAsync(request.Username, request.Password, cancellationToken);
     }
 }
-

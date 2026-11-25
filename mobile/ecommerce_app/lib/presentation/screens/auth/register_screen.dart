@@ -123,19 +123,105 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
 
     if (success && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('¡Cuenta creada exitosamente en Odoo!'),
-          backgroundColor: AppColors.success,
-        ),
-      );
-      if (Navigator.of(context).canPop()) {
-        Navigator.of(context).pop(true);
-      } else {
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          AppRoutes.catalog,
-          (_) => false,
+      final authProvider = context.read<AuthProvider>();
+      if (authProvider.requiresVerification) {
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) {
+            final isDark = Theme.of(dialogContext).brightness == Brightness.dark;
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 72,
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withAlpha(30),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.mark_email_read_outlined,
+                      size: 42,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Revisa tu correo',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Hemos enviado un enlace de confirmación a tu Gmail. Abre el mensaje y presiona \'Confirmar mi Cuenta\' para poder acceder.',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
+                      height: 1.4,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.of(dialogContext).pop();
+                        if (Navigator.of(context).canPop()) {
+                          Navigator.of(context).pop();
+                        } else {
+                          Navigator.of(context).pushReplacementNamed(AppRoutes.login);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Ir al Inicio de Sesión',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('¡Cuenta creada exitosamente en Odoo!'),
+            backgroundColor: AppColors.success,
+          ),
+        );
+        if (Navigator.of(context).canPop()) {
+          Navigator.of(context).pop(true);
+        } else {
+          Navigator.of(context).pushNamedAndRemoveUntil(
+            AppRoutes.catalog,
+            (_) => false,
+          );
+        }
       }
     }
   }

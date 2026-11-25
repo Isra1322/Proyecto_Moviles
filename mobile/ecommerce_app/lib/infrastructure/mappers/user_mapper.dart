@@ -35,7 +35,8 @@ class UserMapper {
       username: model.email,
       partnerId: model.partnerId,
       accessToken: model.accessToken,
-      isAuthenticated: model.success,
+      isAuthenticated: model.success && !model.requiresVerification,
+      requiresVerification: model.requiresVerification,
     );
   }
 }

@@ -31,12 +31,14 @@ class AuthRepositoryImpl implements IAuthRepository {
     final request = RegisterRequestModel(name: name, email: email, password: password, phone: phone);
     final response = await _remoteDataSource.register(request);
 
-    if (!response.success) {
+    if (!response.success && !response.requiresVerification) {
       throw AuthException(message: response.message ?? 'Fallo en el registro de cliente.');
     }
 
     final user = UserMapper.fromRegisterResponse(response);
-    await _localDataSource.saveUser(user);
+    if (!response.requiresVerification) {
+      await _localDataSource.saveUser(user);
+    }
     return user;
   }
 

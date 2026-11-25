@@ -14,7 +14,8 @@ public class GetProductsUseCase
 
     public async Task<IReadOnlyList<ProductDto>> ExecuteAsync(int? categoryId = null, CancellationToken cancellationToken = default)
     {
-        return await _odooService.GetProductsAsync(categoryId, cancellationToken);
+        var products = await _odooService.GetProductsAsync(categoryId, cancellationToken);
+        return products.Where(p => p.Stock > 0).ToList();
     }
 }
 

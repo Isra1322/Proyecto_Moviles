@@ -11,6 +11,9 @@ class AddToCartUseCase {
     if (quantity <= 0) {
       throw ArgumentError('La cantidad a agregar debe ser mayor a cero.');
     }
+    if (product.stock <= 0) {
+      throw StateError('El producto no tiene inventario disponible.');
+    }
 
     final currentCart = await _repository.getCart();
     final updatedCart = currentCart.addItem(product, quantity: quantity);

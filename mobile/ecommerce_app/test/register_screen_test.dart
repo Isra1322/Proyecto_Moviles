@@ -1,5 +1,15 @@
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:provider/provider.dart';
+import 'package:ecommerce_app/domain/entities/user.dart';
+import 'package:ecommerce_app/domain/repositories/i_auth_repository.dart';
+import 'package:ecommerce_app/application/use_cases/auth/get_saved_user_use_case.dart';
+import 'package:ecommerce_app/application/use_cases/auth/login_use_case.dart';
+import 'package:ecommerce_app/application/use_cases/auth/logout_use_case.dart';
+import 'package:ecommerce_app/application/use_cases/auth/register_use_case.dart';
+import 'package:ecommerce_app/presentation/providers/auth_provider.dart';
+import 'package:ecommerce_app/presentation/routes/app_routes.dart';
 import 'package:ecommerce_app/presentation/screens/auth/register_screen.dart';
 
 void main() {
@@ -264,4 +274,88 @@ void main() {
       expect(validatePhone('0991234567'), isNull);
     });
   });
+
+  group('RegisterScreen Verification Dialog Tests', () {
+    late _MockRegisterAuthRepo mockAuthRepo;
+    late AuthProvider authProvider;
+
+    setUp(() {
+      mockAuthRepo = _MockRegisterAuthRepo();
+      authProvider = AuthProvider(
+        LoginUseCase(mockAuthRepo),
+        RegisterUseCase(mockAuthRepo),
+        GetSavedUserUseCase(mockAuthRepo),
+        LogoutUseCase(mockAuthRepo),
+      );
+    });
+
+    Widget createRegisterWidget() {
+      return MaterialApp(
+        routes: {
+          AppRoutes.login: (_) => const Scaffold(body: Text('Login Screen')),
+        },
+        home: ChangeNotifierProvider<AuthProvider>.value(
+          value: authProvider,
+          child: const RegisterScreen(),
+        ),
+      );
+    }
+
+    testWidgets('Muestra diálogo de verificación al registrar cuenta exitosamente', (tester) async {
+      await tester.pumpWidget(createRegisterWidget());
+
+      // Llenar campos
+      final nameField = find.widgetWithText(TextFormField, 'Nombre Completo');
+      final emailField = find.widgetWithText(TextFormField, 'Correo Electrónico');
+      final phoneField = find.widgetWithText(TextFormField, 'Teléfono');
+      final passField = find.widgetWithText(TextFormField, 'Contraseña');
+
+      await tester.enterText(nameField, 'Carlos Mendoza');
+      await tester.enterText(emailField, 'carlos@gmail.com');
+      await tester.enterText(phoneField, '0991234567');
+      await tester.enterText(passField, 'password123');
+      await tester.pumpAndSettle();
+
+      final registerButton = find.widgetWithText(ElevatedButton, 'Registrar Cuenta');
+      await tester.tap(registerButton);
+      await tester.pumpAndSettle();
+
+      // Verificar diálogo
+      expect(find.text('Revisa tu correo'), findsOneWidget);
+      expect(
+        find.text('Hemos enviado un enlace de confirmación a tu Gmail. Abre el mensaje y presiona \'Confirmar mi Cuenta\' para poder acceder.'),
+        findsOneWidget,
+      );
+      expect(find.text('Ir al Inicio de Sesión'), findsOneWidget);
+
+      // Presionar botón del diálogo
+      await tester.tap(find.text('Ir al Inicio de Sesión'));
+      await tester.pumpAndSettle();
+
+      // Debe redirigir a Login
+      expect(find.text('Login Screen'), findsOneWidget);
+    });
+  });
+}
+
+class _MockRegisterAuthRepo implements IAuthRepository {
+  @override
+  Future<User> login(String username, String password) async => throw UnimplementedError();
+
+  @override
+  Future<User> register(String name, String email, String password, {String? phone}) async {
+    return User(
+      uid: 0,
+      name: name,
+      username: email,
+      requiresVerification: true,
+      isAuthenticated: false,
+    );
+  }
+
+  @override
+  Future<User?> getSavedUser() async => null;
+
+  @override
+  Future<void> logout() async {}
 }

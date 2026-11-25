@@ -8,4 +8,5 @@ public class RegisterResponseDto
     public string Email { get; set; } = string.Empty;
     public string? AccessToken { get; set; }
     public string? Message { get; set; }
+    public bool RequiresVerification { get; set; }
 }

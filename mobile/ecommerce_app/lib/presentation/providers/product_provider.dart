@@ -61,22 +61,24 @@ class ProductProvider extends ChangeNotifier {
       _selectedCategoryId != null;
 
   double get minAvailablePrice {
-    if (_allProducts.isEmpty) return 0.0;
-    return _allProducts
+    final available = _allProducts.where((p) => p.stock > 0).toList();
+    if (available.isEmpty) return 0.0;
+    return available
         .map((p) => p.price)
         .reduce((a, b) => a < b ? a : b);
   }
 
   double get maxAvailablePrice {
-    if (_allProducts.isEmpty) return 100.0;
-    return _allProducts
+    final available = _allProducts.where((p) => p.stock > 0).toList();
+    if (available.isEmpty) return 100.0;
+    return available
         .map((p) => p.price)
         .reduce((a, b) => a > b ? a : b);
   }
 
   /// Retorna la lista de productos tras aplicar búsqueda, rango de precios y ordenación
   List<Product> get products {
-    var list = List<Product>.from(_allProducts);
+    var list = _allProducts.where((p) => p.stock > 0).toList();
 
     // 1. Filtro por buscador (nombre o descripción)
     if (_searchQuery.trim().isNotEmpty) {
@@ -124,7 +126,9 @@ class ProductProvider extends ChangeNotifier {
     _selectedCategoryId = categoryId;
     notifyListeners();
     try {
-      _allProducts = await _getProductsUseCase.execute(categoryId: categoryId);
+      final products = await _getProductsUseCase.execute(categoryId: categoryId);
+      final availableProducts = products.where((p) => p.stock > 0).toList();
+      _allProducts = availableProducts;
       _status = ViewStatus.success;
     } catch (e) {
       _errorMessage = _friendlyMessage(e);

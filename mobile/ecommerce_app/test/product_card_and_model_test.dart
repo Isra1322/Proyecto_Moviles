@@ -5,7 +5,20 @@ import 'package:ecommerce_app/core/theme/app_theme.dart';
 import 'package:ecommerce_app/core/utils/currency_formatter.dart';
 import 'package:ecommerce_app/domain/entities/product.dart';
 import 'package:ecommerce_app/infrastructure/models/product_model.dart';
+import 'package:ecommerce_app/application/use_cases/cart/add_to_cart_use_case.dart';
+import 'package:ecommerce_app/domain/entities/cart.dart';
+import 'package:ecommerce_app/domain/repositories/i_cart_repository.dart';
 import 'package:ecommerce_app/presentation/widgets/product/product_card.dart';
+
+class _FakeCartRepo implements ICartRepository {
+  Cart cart = const Cart();
+  @override
+  Future<void> clearCart() async { cart = const Cart(); }
+  @override
+  Future<Cart> getCart() async => cart;
+  @override
+  Future<void> saveCart(Cart newCart) async { cart = newCart; }
+}
 
 void main() {
   group('ProductModel & Product Entity Description & Stock Tests', () {
@@ -244,6 +257,16 @@ void main() {
       final allTextWidgets = tester.widgetList<Text>(find.byType(Text));
       final hasDescription = allTextWidgets.any((w) => w.data == null && w.textSpan == null);
       expect(hasDescription, isFalse);
+    });
+  });
+
+  group('Zero Stock Validation Tests', () {
+    test('AddToCartUseCase throws StateError when product has stock <= 0', () async {
+      final repo = _FakeCartRepo();
+      final useCase = AddToCartUseCase(repo);
+      const outOfStockProduct = Product(id: 99, name: 'Sin Stock', price: 10, stock: 0);
+
+      expect(() => useCase.execute(outOfStockProduct), throwsA(isA<StateError>()));
     });
   });
 }

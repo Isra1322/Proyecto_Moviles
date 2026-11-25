@@ -46,12 +46,15 @@ class CartProvider extends ChangeNotifier {
   }
 
   Future<String?> addToCart(Product product, {int quantity = 1}) async {
+    if (product.stock <= 0) {
+      return 'No hay inventario disponible para este producto';
+    }
     try {
       _cart = await _addToCartUseCase.execute(product, quantity: quantity);
       notifyListeners();
       return null;
     } catch (e) {
-      return e.toString().replaceAll('Exception: ', '');
+      return e.toString().replaceAll('Exception: ', '').replaceAll('Bad state: ', '');
     }
   }
 

@@ -26,10 +26,12 @@ class AuthProvider extends ChangeNotifier {
   ViewStatus _status = ViewStatus.initial;
   User? _currentUser;
   String? _errorMessage;
+  bool _requiresVerification = false;
 
   ViewStatus get status => _status;
   User? get currentUser => _currentUser;
   String? get errorMessage => _errorMessage;
+  bool get requiresVerification => _requiresVerification;
   bool get isAuthenticated => _currentUser != null && _currentUser!.isAuthenticated;
   bool get isLoading => _status == ViewStatus.loading;
 
@@ -71,14 +73,21 @@ class AuthProvider extends ChangeNotifier {
   }) async {
     _status = ViewStatus.loading;
     _errorMessage = null;
+    _requiresVerification = false;
     notifyListeners();
     try {
-      _currentUser = await _registerUseCase.execute(
+      final user = await _registerUseCase.execute(
         name: name,
         email: email,
         password: password,
         phone: phone,
       );
+      _requiresVerification = user.requiresVerification;
+      if (!user.requiresVerification) {
+        _currentUser = user;
+      } else {
+        _currentUser = null;
+      }
       _status = ViewStatus.success;
       notifyListeners();
       return true;

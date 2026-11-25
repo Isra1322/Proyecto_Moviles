@@ -13,11 +13,15 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.Configure<OdooSettings>(configuration.GetSection(OdooSettings.SectionName));
+        services.Configure<SmtpSettings>(configuration.GetSection(SmtpSettings.SectionName));
 
+        services.AddMemoryCache();
         services.AddSingleton<ICustomerCredentialStore, CustomerCredentialStore>();
+        services.AddSingleton<IPendingRegistrationService, PendingRegistrationService>();
         services.AddSingleton<IPaymentMethodService, PaymentMethodService>();
         services.AddSingleton<IAddressService, AddressService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IEmailService, SmtpEmailService>();
 
         services.AddHttpClient<IOdooService, OdooService>((serviceProvider, client) =>
         {

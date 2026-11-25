@@ -165,6 +165,58 @@ public class OdooService : IOdooService
         }
     }
 
+    public async Task<bool> CheckEmailExistsAsync(string email, CancellationToken cancellationToken = default)
+    {
+        var cleanEmail = email.Trim().ToLowerInvariant();
+
+        // 1. Verificar si ya existe en el almacén local de credenciales
+        if (await _credentialStore.ExistsEmailAsync(cleanEmail))
+        {
+            return true;
+        }
+
+        // 2. Consultar en Odoo res.partner
+        try
+        {
+            var checkPayload = new
+            {
+                domain = new object[]
+                {
+                    new object[] { "email", "=", cleanEmail }
+                },
+                fields = new[] { "id", "name", "email" },
+                limit = 1
+            };
+
+            var responseElement = await CallJson2Async<JsonElement>("res.partner", "search_read", checkPayload, cancellationToken);
+            var existingPartners = ExtractRecordsFromJson2(responseElement);
+            if (existingPartners != null && existingPartners.Count > 0)
+            {
+                var matchingPartner = existingPartners.FirstOrDefault(p =>
+                {
+                    if (p.TryGetProperty("email", out var emailProp) && emailProp.ValueKind == JsonValueKind.String)
+                    {
+                        var emailVal = emailProp.GetString();
+                        return !string.IsNullOrWhiteSpace(emailVal) &&
+                               string.Equals(emailVal.Trim(), cleanEmail, StringComparison.OrdinalIgnoreCase);
+                    }
+                    return false;
+                });
+
+                if (matchingPartner.ValueKind != JsonValueKind.Undefined)
+                {
+                    return true;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al consultar /json/2/res.partner/search_read en Odoo para el correo {Email}", cleanEmail);
+        }
+
+        return false;
+    }
+
     public async Task<LoginResponseDto> AuthenticateAsync(string username, string password, CancellationToken cancellationToken = default)
     {
         var cleanUsername = username.Trim();
@@ -439,6 +491,7 @@ public class OdooService : IOdooService
 
         return (products ?? new List<OdooProductModel>())
             .Select(OdooProductMapper.ToDto)
+            .Where(p => p.Stock > 0)
             .ToList();
     }
 

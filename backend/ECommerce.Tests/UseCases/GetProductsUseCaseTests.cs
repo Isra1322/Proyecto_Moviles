@@ -55,5 +55,28 @@ public class GetProductsUseCaseTests
         // Assert
         _odooServiceMock.Verify(s => s.GetProductsAsync(categoryId, It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task ExecuteAsync_FiltersOutProductsWithZeroOrNegativeStock()
+    {
+        // Arrange
+        var products = new List<ProductDto>
+        {
+            new() { Id = 1, Name = "Laptop Gamer", Price = 1200m, Stock = 5 },
+            new() { Id = 2, Name = "Teclado Agotado", Price = 50m, Stock = 0 },
+            new() { Id = 3, Name = "Mouse Inalámbrico", Price = 30m, Stock = -1 }
+        };
+
+        _odooServiceMock
+            .Setup(s => s.GetProductsAsync(null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products);
+
+        // Act
+        var result = await _useCase.ExecuteAsync();
+
+        // Assert
+        result.Should().HaveCount(1);
+        result.First().Name.Should().Be("Laptop Gamer");
+    }
 }
 
