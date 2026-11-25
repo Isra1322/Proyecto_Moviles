@@ -72,7 +72,6 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
     final cards = paymentProvider.paymentMethods;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Mis Métodos de Pago'),
         elevation: 0,
@@ -156,6 +155,7 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
   }
 
   Widget _buildCardItem(BuildContext context, PaymentMethodModel card) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 12),
@@ -163,7 +163,9 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
         borderRadius: BorderRadius.circular(16),
         side: card.isDefault
             ? const BorderSide(color: AppColors.primary, width: 1.5)
-            : BorderSide.none,
+            : (isDark
+                ? const BorderSide(color: Color(0xFF2A2A2A))
+                : BorderSide.none),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -183,10 +185,12 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                           Flexible(
                             child: Text(
                               card.maskedCardNumber,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: isDark
+                                    ? Colors.white
+                                    : AppColors.textPrimary,
                                 letterSpacing: 0.5,
                               ),
                             ),
@@ -199,15 +203,18 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withAlpha(25),
+                                color: AppColors.primary
+                                    .withAlpha(isDark ? 35 : 25),
                                 borderRadius: BorderRadius.circular(8),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Predeterminada',
                                 style: TextStyle(
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
-                                  color: AppColors.primary,
+                                  color: isDark
+                                      ? Colors.lightBlueAccent
+                                      : AppColors.primary,
                                 ),
                               ),
                             ),
@@ -217,10 +224,12 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         card.cardHolderName,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textSecondary,
+                          color: isDark
+                              ? const Color(0xFFAAAAAA)
+                              : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -237,23 +246,30 @@ class _PaymentMethodsScreenState extends State<PaymentMethodsScreen> {
                 ),
               ],
             ),
-            const Divider(height: 20),
+            Divider(
+              height: 20,
+              color: isDark ? Colors.white12 : Colors.grey.shade200,
+            ),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.calendar_today_outlined,
                       size: 14,
-                      color: AppColors.textSecondary,
+                      color: isDark
+                          ? const Color(0xFFAAAAAA)
+                          : AppColors.textSecondary,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'Vence: ${card.expiryDate}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: isDark
+                            ? const Color(0xFFAAAAAA)
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],

@@ -103,10 +103,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     final productProvider = context.watch<ProductProvider>();
     final categories = productProvider.categories;
     final totalProducts = productProvider.allProducts.length;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Categorías'),
         actions: [
           CartBadgeIcon(
@@ -146,16 +147,17 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       children: [
                         // Tarjeta para "Todas las categorías"
                         _buildAllCategoriesCard(
+                          context,
                           totalProducts: totalProducts,
                           isSelected: productProvider.selectedCategoryId == null,
                         ),
                         const SizedBox(height: 16),
-                        const Text(
+                        Text(
                           'Explora por Categoría',
                           style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -168,6 +170,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                               productProvider.selectedCategoryId == cat.id;
 
                           return _buildCategoryItemCard(
+                            context,
                             category: cat,
                             productCount: count,
                             isSelected: isSelected,
@@ -180,16 +183,20 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  Widget _buildAllCategoriesCard({
+  Widget _buildAllCategoriesCard(
+    BuildContext context, {
     required int totalProducts,
     required bool isSelected,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: isSelected ? 2 : 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(14),
         side: BorderSide(
-          color: isSelected ? AppColors.primary : AppColors.border,
+          color: isSelected
+              ? AppColors.primary
+              : (isDark ? const Color(0xFF333333) : AppColors.border),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -203,7 +210,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withAlpha(25),
+                  color: AppColors.primary.withAlpha(isDark ? 35 : 25),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -217,20 +224,22 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Todas las Categorías',
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       '$totalProducts productos disponibles',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: isDark
+                            ? const Color(0xFFB0B0B0)
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -238,7 +247,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               ),
               Icon(
                 Icons.chevron_right,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDark ? Colors.white54 : AppColors.textSecondary),
               ),
             ],
           ),
@@ -247,12 +258,14 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  Widget _buildCategoryItemCard({
+  Widget _buildCategoryItemCard(
+    BuildContext context, {
     required Category category,
     required int productCount,
     required bool isSelected,
   }) {
     final icon = _getCategoryIcon(category.name);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
@@ -260,7 +273,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(
-          color: isSelected ? AppColors.primary : AppColors.border,
+          color: isSelected
+              ? AppColors.primary
+              : (isDark ? const Color(0xFF333333) : AppColors.border),
           width: isSelected ? 2 : 1,
         ),
       ),
@@ -277,8 +292,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 height: 48,
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? AppColors.primary.withAlpha(35)
-                      : AppColors.primary.withAlpha(20),
+                      ? AppColors.primary.withAlpha(isDark ? 45 : 35)
+                      : AppColors.primary.withAlpha(isDark ? 30 : 20),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -300,7 +315,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isSelected ? AppColors.primaryDark : AppColors.textPrimary,
+                        color: isSelected
+                            ? (isDark ? Colors.lightBlueAccent : AppColors.primaryDark)
+                            : (isDark ? Colors.white : AppColors.textPrimary),
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -308,9 +325,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       productCount > 0
                           ? '$productCount producto${productCount == 1 ? '' : 's'} disponible${productCount == 1 ? '' : 's'}'
                           : 'Explorar productos',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 13,
-                        color: AppColors.textSecondary,
+                        color: isDark
+                            ? const Color(0xFFB0B0B0)
+                            : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -320,7 +339,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               // Flecha indicadora
               Icon(
                 Icons.chevron_right,
-                color: isSelected ? AppColors.primary : AppColors.textSecondary,
+                color: isSelected
+                    ? AppColors.primary
+                    : (isDark ? Colors.white54 : AppColors.textSecondary),
                 size: 24,
               ),
             ],

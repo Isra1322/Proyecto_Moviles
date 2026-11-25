@@ -4,6 +4,7 @@ import 'package:ecommerce_app/application/use_cases/auth/login_use_case.dart';
 import 'package:ecommerce_app/application/use_cases/auth/register_use_case.dart';
 import 'package:ecommerce_app/application/use_cases/auth/get_saved_user_use_case.dart';
 import 'package:ecommerce_app/application/use_cases/auth/logout_use_case.dart';
+import 'package:ecommerce_app/infrastructure/datasources/local/auth_local_data_source.dart';
 
 enum ViewStatus { initial, loading, success, error }
 
@@ -12,13 +13,15 @@ class AuthProvider extends ChangeNotifier {
   final RegisterUseCase _registerUseCase;
   final GetSavedUserUseCase _getSavedUserUseCase;
   final LogoutUseCase _logoutUseCase;
+  final AuthLocalDataSource? _authLocalDataSource;
 
   AuthProvider(
     this._loginUseCase,
     this._registerUseCase,
     this._getSavedUserUseCase,
-    this._logoutUseCase,
-  );
+    this._logoutUseCase, [
+    this._authLocalDataSource,
+  ]);
 
   ViewStatus _status = ViewStatus.initial;
   User? _currentUser;
@@ -85,6 +88,22 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<void> updateProfile({
+    required String name,
+    String? phone,
+  }) async {
+    if (_currentUser == null) return;
+    _currentUser = _currentUser!.copyWith(
+      name: name,
+      phone: phone,
+    );
+    final localDs = _authLocalDataSource;
+    if (localDs != null) {
+      await localDs.saveUser(_currentUser!);
+    }
+    notifyListeners();
   }
 
   Future<void> logout() async {

@@ -21,6 +21,7 @@ class LoginResponseModel {
   final String name;
   final String username;
   final int? partnerId;
+  final String? phone;
   final String? sessionId;
   final String? accessToken;
   final String? message;
@@ -31,6 +32,7 @@ class LoginResponseModel {
     required this.name,
     required this.username,
     this.partnerId,
+    this.phone,
     this.sessionId,
     this.accessToken,
     this.message,
@@ -43,6 +45,7 @@ class LoginResponseModel {
       name: json['name'] as String? ?? '',
       username: json['username'] as String? ?? '',
       partnerId: json['partnerId'] as int?,
+      phone: json['phone'] as String?,
       sessionId: json['sessionId'] as String?,
       accessToken: json['accessToken'] as String?,
       message: json['message'] as String?,
@@ -56,6 +59,7 @@ class LoginResponseModel {
       'name': name,
       'username': username,
       'partnerId': partnerId,
+      if (phone != null) 'phone': phone,
       'sessionId': sessionId,
       'accessToken': accessToken,
       'message': message,

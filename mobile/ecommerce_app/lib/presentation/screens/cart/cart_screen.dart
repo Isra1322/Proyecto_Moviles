@@ -284,6 +284,7 @@ class _CartScreenState extends State<CartScreen> {
       addressProvider = context.watch<AddressProvider>();
     } catch (_) {}
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final hasQuantityError = cartProvider.cart.items.any(
       (item) => _quantityError(item) != null,
     );
@@ -304,9 +305,9 @@ class _CartScreenState extends State<CartScreen> {
                   _clearAllQuantityDrafts();
                 }
               },
-              child: const Text(
+              child: Text(
                 'Vaciar',
-                style: TextStyle(color: Colors.white),
+                style: TextStyle(color: isDark ? Colors.white : AppColors.primary),
               ),
             ),
         ],
@@ -339,13 +340,15 @@ class _CartScreenState extends State<CartScreen> {
                   ),
                   Container(
                     padding: const EdgeInsets.all(20),
-                    decoration: const BoxDecoration(
-                      color: Colors.white,
+                    decoration: BoxDecoration(
+                      color: isDark ? Theme.of(context).cardColor : Colors.white,
                       boxShadow: [
                         BoxShadow(
-                          color: Color(0x1A000000),
+                          color: isDark
+                              ? Colors.black.withAlpha(50)
+                              : const Color(0x1A000000),
                           blurRadius: 12,
-                          offset: Offset(0, -4),
+                          offset: const Offset(0, -4),
                         ),
                       ],
                     ),
@@ -354,21 +357,21 @@ class _CartScreenState extends State<CartScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Subtotal:',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: AppColors.textSecondary,
+                                color: isDark ? Colors.white : AppColors.textSecondary,
                               ),
                             ),
                             Text(
                               CurrencyFormatter.format(
                                 cartProvider.subtotal,
                               ),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
                               ),
                             ),
                           ],
@@ -377,38 +380,41 @@ class _CartScreenState extends State<CartScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'IVA (15%):',
                               style: TextStyle(
                                 fontSize: 14,
-                                color: AppColors.textSecondary,
+                                color: isDark ? Colors.white : AppColors.textSecondary,
                               ),
                             ),
                             Text(
                               CurrencyFormatter.format(
                                 cartProvider.iva15,
                               ),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.textPrimary,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
                               ),
                             ),
                           ],
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Divider(height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Divider(
+                            height: 1,
+                            color: isDark ? const Color(0xFF2A2A2A) : null,
+                          ),
                         ),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Total a Pagar:',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.textPrimary,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
                               ),
                             ),
                             Text(
@@ -418,17 +424,17 @@ class _CartScreenState extends State<CartScreen> {
                               style: const TextStyle(
                                 fontSize: 22,
                                 fontWeight: FontWeight.bold,
-                                color: AppColors.primary,
+                                color: Color(0xFF2196F3),
                               ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 4),
-                        const Text(
+                        Text(
                           '* Incluye IVA oficial del 15% según especificaciones técnicas de integración.',
                           style: TextStyle(
                             fontSize: 11,
-                            color: AppColors.textSecondary,
+                            color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -494,14 +500,17 @@ class _CartScreenState extends State<CartScreen> {
     AuthProvider authProvider,
     PaymentProvider paymentProvider,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = paymentProvider.selectedMethod;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: isDark ? Theme.of(context).cardColor : AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -509,16 +518,16 @@ class _CartScreenState extends State<CartScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.payment, size: 18, color: AppColors.primary),
-                  SizedBox(width: 6),
+                  const Icon(Icons.payment, size: 18, color: Color(0xFF2196F3)),
+                  const SizedBox(width: 6),
                   Text(
                     'Método de Pago',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -528,9 +537,16 @@ class _CartScreenState extends State<CartScreen> {
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
+                    foregroundColor: const Color(0xFF2196F3),
                   ),
                   onPressed: () => SelectCardModal.show(context),
-                  child: const Text('Cambiar'),
+                  child: const Text(
+                    'Cambiar',
+                    style: TextStyle(
+                      color: Color(0xFF2196F3),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -546,17 +562,17 @@ class _CartScreenState extends State<CartScreen> {
                     children: [
                       Text(
                         selected.maskedCardNumber,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
-                          color: AppColors.textPrimary,
+                          color: isDark ? const Color(0xFFB0B0B0) : AppColors.textPrimary,
                         ),
                       ),
                       Text(
                         '${selected.cardHolderName} • Exp: ${selected.expiryDate}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
-                          color: AppColors.textSecondary,
+                          color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -570,11 +586,13 @@ class _CartScreenState extends State<CartScreen> {
                 const Icon(Icons.info_outline,
                     size: 20, color: AppColors.warning),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'No tienes tarjetas registradas para pagar.',
                     style: TextStyle(
-                        fontSize: 12, color: AppColors.textSecondary),
+                      fontSize: 12,
+                      color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -586,7 +604,7 @@ class _CartScreenState extends State<CartScreen> {
                 style: OutlinedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8)),
-                  side: const BorderSide(color: AppColors.primary),
+                  side: const BorderSide(color: Color(0xFF2196F3)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
                 onPressed: () async {
@@ -599,13 +617,13 @@ class _CartScreenState extends State<CartScreen> {
                   AddCardModal.show(context);
                 },
                 icon: const Icon(Icons.add_card,
-                    size: 16, color: AppColors.primary),
+                    size: 16, color: Color(0xFF2196F3)),
                 label: const Text(
                   'Agregar tarjeta para pagar',
                   style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.primary),
+                      color: Color(0xFF2196F3)),
                 ),
               ),
             ),
@@ -620,14 +638,17 @@ class _CartScreenState extends State<CartScreen> {
     AuthProvider authProvider,
     AddressProvider addressProvider,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selected = addressProvider.selectedAddress;
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.background,
+        color: isDark ? Theme.of(context).cardColor : AppColors.background,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
+        border: Border.all(
+          color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade300,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -635,16 +656,16 @@ class _CartScreenState extends State<CartScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Row(
+              Row(
                 children: [
-                  Icon(Icons.location_on, size: 18, color: AppColors.primary),
-                  SizedBox(width: 6),
+                  const Icon(Icons.location_on, size: 18, color: Color(0xFF2196F3)),
+                  const SizedBox(width: 6),
                   Text(
                     'Dirección de Entrega',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                 ],
@@ -654,9 +675,16 @@ class _CartScreenState extends State<CartScreen> {
                   style: TextButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
+                    foregroundColor: const Color(0xFF2196F3),
                   ),
                   onPressed: () => SelectAddressModal.show(context),
-                  child: const Text('Cambiar'),
+                  child: const Text(
+                    'Cambiar',
+                    style: TextStyle(
+                      color: Color(0xFF2196F3),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
             ],
           ),
@@ -668,13 +696,13 @@ class _CartScreenState extends State<CartScreen> {
                 Container(
                   padding: const EdgeInsets.all(6),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(20),
+                    color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 20),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Icon(
                     Icons.home_outlined,
                     size: 20,
-                    color: AppColors.primary,
+                    color: Color(0xFF2196F3),
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -687,10 +715,10 @@ class _CartScreenState extends State<CartScreen> {
                           Flexible(
                             child: Text(
                               selected.title,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 14,
-                                color: AppColors.textPrimary,
+                                color: isDark ? Colors.white : AppColors.textPrimary,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -700,13 +728,13 @@ class _CartScreenState extends State<CartScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               decoration: BoxDecoration(
-                                color: AppColors.primary.withAlpha(20),
+                                color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 20),
                                 borderRadius: BorderRadius.circular(4),
                               ),
-                              child: const Text(
+                              child: Text(
                                 'Predeterminada',
                                 style: TextStyle(
-                                  color: AppColors.primaryDark,
+                                  color: isDark ? const Color(0xFF90CAF9) : AppColors.primaryDark,
                                   fontSize: 10,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -718,25 +746,25 @@ class _CartScreenState extends State<CartScreen> {
                       const SizedBox(height: 2),
                       Text(
                         selected.street,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textPrimary,
+                          color: isDark ? const Color(0xFFB0B0B0) : AppColors.textPrimary,
                         ),
                       ),
                       Text(
                         '${selected.city}${selected.stateOrProvince.isNotEmpty ? ", ${selected.stateOrProvince}" : ""}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textSecondary,
+                          color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                         ),
                       ),
                       if (selected.reference != null && selected.reference!.isNotEmpty)
                         Text(
                           'Ref: ${selected.reference}',
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 11,
                             fontStyle: FontStyle.italic,
-                            color: AppColors.textSecondary,
+                            color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                           ),
                         ),
                     ],
@@ -749,12 +777,12 @@ class _CartScreenState extends State<CartScreen> {
               children: [
                 const Icon(Icons.info_outline, size: 20, color: AppColors.warning),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'No tienes una dirección de entrega configurada',
                     style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textSecondary,
+                      color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -769,7 +797,7 @@ class _CartScreenState extends State<CartScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  side: const BorderSide(color: AppColors.primary),
+                  side: const BorderSide(color: Color(0xFF2196F3)),
                   padding: const EdgeInsets.symmetric(vertical: 8),
                 ),
                 onPressed: () async {
@@ -785,13 +813,13 @@ class _CartScreenState extends State<CartScreen> {
                   AddEditAddressModal.show(context);
                 },
                 icon: const Icon(Icons.add_location_alt_outlined,
-                    size: 16, color: AppColors.primary),
+                    size: 16, color: Color(0xFF2196F3)),
                 label: const Text(
                   'Agregar Dirección de Entrega',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.primary,
+                    color: Color(0xFF2196F3),
                   ),
                 ),
               ),

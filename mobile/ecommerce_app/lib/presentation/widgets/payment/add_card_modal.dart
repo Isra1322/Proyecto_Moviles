@@ -9,10 +9,16 @@ class AddCardModal extends StatefulWidget {
   const AddCardModal({super.key});
 
   static Future<dynamic> show(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark
+          ? const Color(0xFF1E1E1E)
+          : Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => const AddCardModal(),
     );
   }
@@ -143,6 +149,8 @@ class _AddCardModalState extends State<AddCardModal> {
     List<TextInputFormatter>? inputFormatters,
     String? Function(String?)? validator,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return TextFormField(
       controller: controller,
       keyboardType: keyboardType,
@@ -151,37 +159,43 @@ class _AddCardModalState extends State<AddCardModal> {
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
       validator: validator,
-      style: const TextStyle(
+      style: TextStyle(
         fontSize: 14,
         fontWeight: FontWeight.w500,
-        color: AppColors.textPrimary,
+        color: isDark ? Colors.white : AppColors.textPrimary,
       ),
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
         counterText: counterText,
         filled: true,
-        fillColor: Colors.grey.shade100,
+        fillColor: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         labelStyle: TextStyle(
-          color: Colors.grey.shade600,
+          color: isDark ? Colors.grey.shade400 : Colors.grey.shade600,
           fontSize: 13,
           fontWeight: FontWeight.w500,
         ),
         hintStyle: TextStyle(
-          color: Colors.grey.shade400,
+          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
           fontSize: 13,
         ),
         prefixIcon: prefixIcon != null
-            ? Icon(prefixIcon, color: AppColors.textSecondary, size: 20)
+            ? Icon(prefixIcon,
+                color: isDark ? Colors.grey.shade400 : AppColors.textSecondary,
+                size: 20)
             : null,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: isDark ? const Color(0xFF3A3A3A) : Colors.transparent,
+          ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
+          borderSide: BorderSide(
+            color: isDark ? const Color(0xFF3A3A3A) : Colors.transparent,
+          ),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -201,10 +215,13 @@ class _AddCardModalState extends State<AddCardModal> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Material(
-      color: Colors.white,
+      color: isDark
+          ? const Color(0xFF1E1E1E)
+          : Theme.of(context).colorScheme.surface,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -228,7 +245,7 @@ class _AddCardModalState extends State<AddCardModal> {
                   height: 4,
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade300,
+                    color: isDark ? Colors.grey.shade700 : Colors.grey.shade300,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -238,16 +255,19 @@ class _AddCardModalState extends State<AddCardModal> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Nueva Tarjeta',
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -369,13 +389,20 @@ class _AddCardModalState extends State<AddCardModal> {
               SwitchListTile.adaptive(
                 contentPadding: EdgeInsets.zero,
                 activeColor: AppColors.primary,
-                title: const Text(
+                title: Text(
                   'Tarjeta predeterminada',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                  ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Usar automáticamente para futuros pedidos',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? Colors.grey.shade400 : AppColors.textSecondary,
+                  ),
                 ),
                 value: _isDefault,
                 onChanged: (val) => setState(() => _isDefault = val),

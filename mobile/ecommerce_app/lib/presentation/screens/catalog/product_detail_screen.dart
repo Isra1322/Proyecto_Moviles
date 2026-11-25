@@ -173,6 +173,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       return const ErrorView(message: 'Producto no encontrado.');
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,10 +193,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 // Nombre
                 Text(
                   product.name,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -245,19 +247,19 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 if (product.description != null &&
                     product.description!.isNotEmpty) ...[
                   const SizedBox(height: 20),
-                  const Text(
+                  Text(
                     'Descripción',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     product.description!,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                       fontSize: 14,
                       height: 1.6,
                     ),
@@ -266,11 +268,11 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'Cantidad:',
                       style: TextStyle(
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white70 : AppColors.textPrimary,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -333,13 +335,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                      disabledBackgroundColor: isDark ? const Color(0xFF333333) : Colors.grey.shade300,
+                      disabledForegroundColor: isDark ? Colors.white38 : Colors.grey.shade600,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
                     onPressed:
                         product.isInStock && _validateQuantity(product) == null
                         ? _addToCart
                         : null,
-                    icon: const Icon(Icons.add_shopping_cart),
+                    icon: Icon(
+                      Icons.add_shopping_cart,
+                      color: (product.isInStock && _validateQuantity(product) == null)
+                          ? Colors.white
+                          : (isDark ? Colors.white38 : Colors.grey.shade600),
+                    ),
                     label: Text(
                       product.isInStock ? 'Agregar al Carrito' : 'Sin Stock',
+                      style: TextStyle(
+                        color: (product.isInStock && _validateQuantity(product) == null)
+                            ? Colors.white
+                            : (isDark ? Colors.white38 : Colors.grey.shade600),
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ),
@@ -387,10 +410,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   Widget _placeholder() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
-      color: AppColors.background,
-      child: const Center(
-        child: Icon(Icons.image_outlined, size: 80, color: AppColors.border),
+      color: isDark ? const Color(0xFF1E1E1E) : AppColors.background,
+      child: Center(
+        child: Icon(
+          Icons.image_outlined,
+          size: 80,
+          color: isDark ? const Color(0xFF3A3A3A) : AppColors.border,
+        ),
       ),
     );
   }

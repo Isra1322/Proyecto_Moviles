@@ -8,22 +8,33 @@ class SelectCardModal extends StatelessWidget {
   const SelectCardModal({super.key});
 
   static Future<void> show(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark
+          ? const Color(0xFF1E1E1E)
+          : Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => const SelectCardModal(),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final paymentProvider = context.watch<PaymentProvider>();
     final cards = paymentProvider.paymentMethods;
     final selectedId = paymentProvider.selectedMethod?.id;
 
+    final surfaceColor = isDark
+        ? const Color(0xFF1E1E1E)
+        : Theme.of(context).colorScheme.surface;
+
     return Material(
-      color: Colors.white,
+      color: surfaceColor,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -35,16 +46,19 @@ class SelectCardModal extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
+                Text(
                   'Seleccionar Método de Pago',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close),
+                  icon: Icon(
+                    Icons.close,
+                    color: isDark ? Colors.white70 : Colors.black54,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ],
@@ -54,13 +68,19 @@ class SelectCardModal extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.background,
+                  color: isDark
+                      ? const Color(0xFF252525)
+                      : AppColors.background,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
                     'No tienes tarjetas registradas aún.',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(
+                      color: isDark
+                          ? Colors.white70
+                          : AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ),
@@ -77,19 +97,27 @@ class SelectCardModal extends StatelessWidget {
                     final card = cards[index];
                     final isSelected = card.id == selectedId;
 
+                    final cardBg = isSelected
+                        ? (isDark
+                            ? const Color(0xFF2196F3).withAlpha(35)
+                            : AppColors.primary.withAlpha(15))
+                        : (isDark ? const Color(0xFF252525) : Colors.white);
+
+                    final cardBorderColor = isSelected
+                        ? const Color(0xFF2196F3)
+                        : (isDark
+                            ? const Color(0xFF3A3A3A)
+                            : Colors.grey.shade300);
+
                     return Material(
-                      color: isSelected
-                          ? AppColors.primary.withAlpha(15)
-                          : Colors.white,
+                      color: cardBg,
                       borderRadius: BorderRadius.circular(12),
                       clipBehavior: Clip.antiAlias,
                       child: Container(
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected
-                                ? AppColors.primary
-                                : Colors.grey.shade300,
+                            color: cardBorderColor,
                             width: isSelected ? 1.5 : 1,
                           ),
                         ),
@@ -101,27 +129,34 @@ class SelectCardModal extends StatelessWidget {
                           leading: _buildCardIcon(card.cardType),
                           title: Text(
                             card.maskedCardNumber,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
+                              color: isDark
+                                  ? Colors.white
+                                  : AppColors.textPrimary,
                             ),
                           ),
                           subtitle: Text(
                             '${card.cardHolderName} • Exp: ${card.expiryDate}',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 12,
-                              color: AppColors.textSecondary,
+                              color: isDark
+                                  ? const Color(0xFFB0B0B0)
+                                  : AppColors.textSecondary,
                             ),
                           ),
                           trailing: isSelected
                               ? const Icon(
                                   Icons.check_circle,
-                                  color: AppColors.primary,
+                                  color: Color(0xFF2196F3),
                                   size: 24,
                                 )
-                              : const Icon(
+                              : Icon(
                                   Icons.radio_button_unchecked,
-                                  color: Colors.grey,
+                                  color: isDark
+                                      ? Colors.white38
+                                      : Colors.grey,
                                   size: 24,
                                 ),
                           onTap: () {
@@ -137,34 +172,34 @@ class SelectCardModal extends StatelessWidget {
             ],
             const SizedBox(height: 16),
             SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  side: const BorderSide(color: Color(0xFF2196F3)),
                 ),
-                side: const BorderSide(color: AppColors.primary),
-              ),
-              onPressed: () {
-                Navigator.pop(context);
-                AddCardModal.show(context);
-              },
-              icon: const Icon(Icons.add, color: AppColors.primary),
-              label: const Text(
-                'Agregar otra tarjeta',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
+                onPressed: () {
+                  Navigator.pop(context);
+                  AddCardModal.show(context);
+                },
+                icon: const Icon(Icons.add, color: Color(0xFF2196F3)),
+                label: const Text(
+                  'Agregar otra tarjeta',
+                  style: TextStyle(
+                    color: Color(0xFF2196F3),
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildCardIcon(String cardType) {
     Color bg = AppColors.primary;

@@ -24,5 +24,6 @@ class Product {
   });
 
   bool get isInStock => stock > 0;
+  String? get descriptionSale => description;
 }
 

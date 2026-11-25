@@ -23,11 +23,24 @@ class ProductModel {
     this.defaultCode,
   });
 
+  String? get descriptionSale => description;
+
+  static String? _parseDescription(dynamic value) {
+    if (value == null || value is bool) return null;
+    final str = value.toString().trim();
+    return str.isEmpty ? null : str;
+  }
+
   factory ProductModel.fromJson(Map<String, dynamic> json) {
     return ProductModel(
       id: json['id'] as int? ?? 0,
       name: json['name'] as String? ?? '',
-      description: json['description'] as String?,
+      description: _parseDescription(
+        json['description'] ??
+            json['Description'] ??
+            json['descriptionSale'] ??
+            json['description_sale'],
+      ),
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
       stock: (json['stock'] as num?)?.toDouble() ?? 0.0,
       categoryId: json['categoryId'] as int?,

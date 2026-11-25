@@ -77,20 +77,14 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
     final canPop = Navigator.of(context).canPop();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: canPop
-          ? AppBar(
-              backgroundColor: Colors.transparent,
-              elevation: 0,
-              leading: IconButton(
-                icon:
-                    const Icon(Icons.arrow_back, color: AppColors.textPrimary),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            )
-          : null,
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -105,7 +99,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withAlpha(20),
+                      color: AppColors.primary.withAlpha(isDark ? 35 : 20),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(
@@ -115,18 +109,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const Text(
+                  Text(
                     'E-Commerce Móvil',
                     style: TextStyle(
                       fontSize: 26,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Inicia sesión para continuar',
-                    style: TextStyle(color: AppColors.textSecondary),
+                    style: TextStyle(
+                      color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
+                    ),
                   ),
                   const SizedBox(height: 36),
                   // Campo de usuario/correo
@@ -182,7 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                        color: AppColors.textSecondary,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
                         size: 20,
                       ),
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
@@ -230,9 +226,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         '¿No tienes una cuenta?',
-                        style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+                        style: TextStyle(
+                          color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
+                          fontSize: 13,
+                        ),
                       ),
                       TextButton(
                         onPressed: _navigateToRegister,
@@ -256,12 +255,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           (_) => false,
                         );
                       },
-                      icon: const Icon(Icons.explore_outlined,
-                          size: 18, color: AppColors.textSecondary),
-                      label: const Text(
+                      icon: Icon(
+                        Icons.explore_outlined,
+                        size: 18,
+                        color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
+                      ),
+                      label: Text(
                         'Continuar como invitado',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                         ),

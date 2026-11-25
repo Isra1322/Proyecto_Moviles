@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ecommerce_app/core/constants/app_colors.dart';
+import 'package:ecommerce_app/core/services/invoice_pdf_service.dart';
 import 'package:ecommerce_app/core/utils/currency_formatter.dart';
 import 'package:ecommerce_app/core/utils/date_formatter.dart';
 import 'package:ecommerce_app/domain/entities/order.dart';
@@ -11,20 +12,24 @@ import '../../providers/order_provider.dart';
 /// Línea divisoria punteada estilo comprobante / ticket
 class DottedDivider extends StatelessWidget {
   final double height;
-  final Color color;
+  final Color? color;
   final double dashWidth;
   final double dashSpace;
 
   const DottedDivider({
     super.key,
     this.height = 1.2,
-    this.color = const Color(0xFFD1D5DB),
+    this.color,
     this.dashWidth = 6.0,
     this.dashSpace = 4.0,
   });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final effectiveColor =
+        color ?? (isDark ? Colors.white24 : const Color(0xFFD1D5DB));
+
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {
         final boxWidth = constraints.constrainWidth();
@@ -38,7 +43,7 @@ class DottedDivider extends StatelessWidget {
                 width: dashWidth,
                 height: height,
                 child: DecoratedBox(
-                  decoration: BoxDecoration(color: color),
+                  decoration: BoxDecoration(color: effectiveColor),
                 ),
               );
             }),
@@ -105,7 +110,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
   }
 
-  Widget _buildStatusStampBadge() {
+  Widget _buildStatusStampBadge(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
     final statusLower = order.status.toLowerCase();
     final bool isConfirmed = statusLower == 'confirmado' ||
         statusLower == 'confirmed' ||
@@ -115,9 +121,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         statusLower == '3' ||
         statusLower == '4';
 
-    final Color bgColor = isConfirmed ? const Color(0xFFE8F5E9) : const Color(0xFFFFF8E1);
-    final Color borderColor = isConfirmed ? const Color(0xFFA5D6A7) : const Color(0xFFFFE082);
-    final Color textColor = isConfirmed ? const Color(0xFF2E7D32) : const Color(0xFFF57F17);
+    final Color bgColor = isConfirmed
+        ? (isDark ? const Color(0xFF1B382B) : const Color(0xFFE8F5E9))
+        : (isDark ? const Color(0xFF3E2723) : const Color(0xFFFFF8E1));
+    final Color borderColor = isConfirmed
+        ? (isDark ? const Color(0xFF2E7D32) : const Color(0xFFA5D6A7))
+        : (isDark ? const Color(0xFFF57F17) : const Color(0xFFFFE082));
+    final Color textColor = isConfirmed
+        ? (isDark ? const Color(0xFF81C784) : const Color(0xFF2E7D32))
+        : (isDark ? const Color(0xFFFFD54F) : const Color(0xFFF57F17));
     final IconData icon = isConfirmed ? Icons.verified_rounded : Icons.pending_actions_rounded;
 
     return Container(
@@ -148,6 +160,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+
     // Desglose financiero con IVA estándar del 15%
     final double total = order.totalAmount;
     final double subtotal = total / 1.15;
@@ -164,11 +178,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 : 'Cliente Registrado'));
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F4F6),
+      backgroundColor: isDark ? Theme.of(context).scaffoldBackgroundColor : const Color(0xFFF3F4F6),
       appBar: AppBar(
         title: Text('Detalle del Pedido #${order.id}'),
         centerTitle: false,
         elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_rounded),
+            tooltip: 'Descargar Factura PDF',
+            onPressed: () =>
+                InvoicePdfService.generateAndDownloadInvoice(context, order),
+          ),
+        ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -178,16 +200,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               // Contenedor principal tipo Comprobante / Recibo
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? Theme.of(context).cardColor : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(15),
+                      color: isDark ? Colors.black.withAlpha(50) : Colors.black.withAlpha(15),
                       blurRadius: 16,
                       offset: const Offset(0, 4),
                     ),
                   ],
-                  border: Border.all(color: const Color(0xFFE5E7EB), width: 1),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF2A2A2A) : const Color(0xFFE5E7EB),
+                    width: 1,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(20.0),
@@ -195,29 +220,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       // 1. Encabezado del Comprobante
-                      _buildReceiptHeader(clientName),
+                      _buildReceiptHeader(context, clientName),
 
                       // Línea divisoria punteada
                       const DottedDivider(),
 
                       // 2. Tabla de Items
-                      _buildReceiptItemsSection(),
+                      _buildReceiptItemsSection(context),
 
                       // Línea divisoria punteada
                       const DottedDivider(),
 
                       // 3. Resumen Financiero
-                      _buildFinancialSummary(subtotal: subtotal, iva: iva, total: total),
+                      _buildFinancialSummary(
+                        context: context,
+                        subtotal: subtotal,
+                        iva: iva,
+                        total: total,
+                      ),
 
                       const SizedBox(height: 16),
                       // Pie del comprobante
                       Center(
                         child: Column(
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.receipt_long_rounded,
                               size: 28,
-                              color: AppColors.textSecondary,
+                              color: isDark ? Colors.white70 : AppColors.textSecondary,
                             ),
                             const SizedBox(height: 4),
                             Text(
@@ -225,7 +255,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               style: TextStyle(
                                 fontSize: 13,
                                 fontStyle: FontStyle.italic,
-                                color: Colors.grey.shade600,
+                                color: isDark ? Colors.white70 : Colors.grey.shade600,
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -233,13 +263,41 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                               'Comprobante emitido electrónicamente',
                               style: TextStyle(
                                 fontSize: 11,
-                                color: Colors.grey.shade400,
+                                color: isDark ? Colors.white38 : Colors.grey.shade400,
                               ),
                             ),
                           ],
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              // Botón destacado para descargar la factura en PDF
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2196F3),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 2,
+                  ),
+                  onPressed: () =>
+                      InvoicePdfService.generateAndDownloadInvoice(context, order),
+                  icon: const Icon(Icons.picture_as_pdf_rounded,
+                      color: Colors.white),
+                  label: const Text(
+                    'Descargar Factura PDF',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -251,7 +309,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildReceiptHeader(String clientName) {
+  Widget _buildReceiptHeader(BuildContext context, String clientName) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -265,17 +325,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(20),
+                    color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 20),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
                     Icons.storefront_rounded,
-                    color: AppColors.primary,
+                    color: Color(0xFF2196F3),
                     size: 22,
                   ),
                 ),
                 const SizedBox(width: 10),
-                const Column(
+                Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
@@ -283,21 +343,21 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
+                        color: isDark ? Colors.white : AppColors.textPrimary,
                       ),
                     ),
                     Text(
                       'Comprobante de Pedido',
                       style: TextStyle(
                         fontSize: 12,
-                        color: AppColors.textSecondary,
+                        color: isDark ? Colors.white70 : AppColors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ],
             ),
-            _buildStatusStampBadge(),
+            _buildStatusStampBadge(context),
           ],
         ),
         const SizedBox(height: 16),
@@ -308,26 +368,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           children: [
             Text(
               'Pedido #${order.id}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
+                color: isDark ? Colors.white : AppColors.textPrimary,
               ),
             ),
             if (order.odooOrderId != null)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(
+                    color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade300,
+                  ),
                 ),
                 child: Text(
                   'Referencia Odoo: #${order.odooOrderId}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.textSecondary,
+                    color: isDark ? Colors.white70 : AppColors.textSecondary,
                   ),
                 ),
               ),
@@ -338,17 +400,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         // Fecha y Hora formateadas
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.calendar_today_outlined,
               size: 14,
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
             Text(
               'Fecha: ${DateFormatter.format(order.orderDate)}',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: AppColors.textPrimary,
+                color: isDark ? Colors.white : AppColors.textPrimary,
               ),
             ),
           ],
@@ -358,19 +420,19 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         // Nombre del Cliente
         Row(
           children: [
-            const Icon(
+            Icon(
               Icons.person_outline,
               size: 15,
-              color: AppColors.textSecondary,
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Cliente: $clientName',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.textPrimary,
+                  color: isDark ? Colors.white : AppColors.textPrimary,
                 ),
               ),
             ),
@@ -380,22 +442,27 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     );
   }
 
-  Widget _buildReceiptItemsSection() {
+  Widget _buildReceiptItemsSection(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     if (_isLoadingDetail) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 24.0),
         child: Center(
           child: Column(
             children: [
-              SizedBox(
+              const SizedBox(
                 width: 24,
                 height: 24,
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
                 'Cargando detalle de productos...',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -404,12 +471,15 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     }
 
     if (order.items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 12.0),
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 12.0),
         child: Center(
           child: Text(
             'No se encontraron líneas de productos registradas.',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(
+              color: isDark ? Colors.white70 : AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ),
       );
@@ -421,31 +491,32 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'DETALLE DE PRODUCTOS',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textSecondary,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
                 letterSpacing: 0.8,
               ),
             ),
             Text(
               '${order.items.length} ítem(s)',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 11,
-                color: AppColors.textSecondary,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
               ),
             ),
           ],
         ),
         const SizedBox(height: 10),
-        ...order.items.map((item) => _buildReceiptItemRow(item)),
+        ...order.items.map((item) => _buildReceiptItemRow(context, item)),
       ],
     );
   }
 
-  Widget _buildReceiptItemRow(OrderItem item) {
+  Widget _buildReceiptItemRow(BuildContext context, OrderItem item) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final double qty = item.quantity > 0 ? item.quantity : 1.0;
     final qtyFormatted = qty % 1 == 0
         ? qty.toInt().toString()
@@ -465,13 +536,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             margin: const EdgeInsets.only(top: 2),
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(15),
+              color: const Color(0xFF2196F3).withAlpha(isDark ? 40 : 15),
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
               Icons.inventory_2_outlined,
               size: 16,
-              color: AppColors.primary,
+              color: Color(0xFF2196F3),
             ),
           ),
           const SizedBox(width: 10),
@@ -482,10 +553,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               children: [
                 Text(
                   displayName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: AppColors.textPrimary,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -496,33 +567,35 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   children: [
                     Text(
                       '$qtyFormatted x \$${item.unitPrice.toStringAsFixed(2)}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: AppColors.textSecondary,
+                        color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                       ),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
+                        color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: Colors.grey.shade300),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade300,
+                        ),
                       ),
                       child: Text(
                         'x$qtyFormatted uds',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.textPrimary,
+                          color: isDark ? Colors.white70 : AppColors.textPrimary,
                         ),
                       ),
                     ),
                     Text(
                       '${CurrencyFormatter.format(item.unitPrice)} c/u',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 11,
-                        color: AppColors.textSecondary,
+                        color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
                       ),
                     ),
                   ],
@@ -535,20 +608,20 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text(
+              Text(
                 'Subtotal',
                 style: TextStyle(
                   fontSize: 10,
-                  color: AppColors.textSecondary,
+                  color: isDark ? Colors.white70 : AppColors.textSecondary,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
                 '\$${item.subtotal.toStringAsFixed(2)}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
-                  color: AppColors.textPrimary,
+                  color: isDark ? Colors.white : AppColors.textPrimary,
                 ),
               ),
             ],
@@ -559,39 +632,45 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildFinancialSummary({
+    required BuildContext context,
     required double subtotal,
     required double iva,
     required double total,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'RESUMEN FINANCIERO',
           style: TextStyle(
             fontSize: 11,
             fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary,
+            color: isDark ? Colors.white70 : AppColors.textSecondary,
             letterSpacing: 0.8,
           ),
         ),
         const SizedBox(height: 8),
         _buildFinanceRow(
+          context: context,
           label: 'Subtotal (sin impuestos)',
           value: CurrencyFormatter.format(subtotal),
         ),
         const SizedBox(height: 8),
         _buildFinanceRow(
+          context: context,
           label: 'IVA (15%)',
           value: CurrencyFormatter.format(iva),
         ),
         const SizedBox(height: 10),
         Container(
           height: 1,
-          color: Colors.grey.shade200,
+          color: isDark ? const Color(0xFF2A2A2A) : Colors.grey.shade200,
         ),
         const SizedBox(height: 10),
         _buildFinanceRow(
+          context: context,
           label: 'Total Pagado',
           value: CurrencyFormatter.format(total),
           isTotal: true,
@@ -601,10 +680,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildFinanceRow({
+    required BuildContext context,
     required String label,
     required String value,
     bool isTotal = false,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -613,7 +695,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: TextStyle(
             fontSize: isTotal ? 16 : 13,
             fontWeight: isTotal ? FontWeight.bold : FontWeight.w500,
-            color: isTotal ? AppColors.textPrimary : AppColors.textSecondary,
+            color: isTotal
+                ? (isDark ? Colors.white : AppColors.textPrimary)
+                : (isDark ? Colors.white70 : AppColors.textSecondary),
           ),
         ),
         Text(
@@ -621,7 +705,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
           style: TextStyle(
             fontSize: isTotal ? 20 : 13,
             fontWeight: FontWeight.bold,
-            color: isTotal ? AppColors.primary : AppColors.textPrimary,
+            color: isTotal
+                ? const Color(0xFF2196F3)
+                : (isDark ? Colors.white : AppColors.textPrimary),
           ),
         ),
       ],

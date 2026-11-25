@@ -38,6 +38,8 @@ class CustomTextField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return TextFormField(
       controller: controller,
       obscureText: obscureText,
@@ -48,11 +50,25 @@ class CustomTextField extends StatelessWidget {
       inputFormatters: inputFormatters,
       maxLength: maxLength,
       textCapitalization: textCapitalization,
+      style: TextStyle(
+        color: isDark ? Colors.white : AppColors.textPrimary,
+      ),
       decoration: InputDecoration(
         labelText: label,
+        labelStyle: TextStyle(
+          color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
+        ),
         hintText: hint,
+        hintStyle: TextStyle(
+          color: isDark ? const Color(0xFF757575) : AppColors.textSecondary,
+        ),
         counterText: counterText,
-        prefixIcon: prefixIcon != null ? Icon(prefixIcon, color: AppColors.textSecondary) : null,
+        prefixIcon: prefixIcon != null
+            ? Icon(
+                prefixIcon,
+                color: isDark ? Colors.white70 : AppColors.textSecondary,
+              )
+            : null,
         suffixIcon: suffixIcon,
       ),
     );

@@ -72,7 +72,6 @@ class _AddressListScreenState extends State<AddressListScreen> {
     final addresses = addressProvider.addresses;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text('Mis Direcciones'),
         elevation: 0,
@@ -156,6 +155,7 @@ class _AddressListScreenState extends State<AddressListScreen> {
   }
 
   Widget _buildAddressCard(BuildContext context, AddressModel address) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
       margin: const EdgeInsets.only(bottom: 12),
@@ -163,7 +163,9 @@ class _AddressListScreenState extends State<AddressListScreen> {
         borderRadius: BorderRadius.circular(16),
         side: address.isDefault
             ? const BorderSide(color: AppColors.primary, width: 1.5)
-            : BorderSide.none,
+            : (isDark
+                ? const BorderSide(color: Color(0xFF2A2A2A))
+                : BorderSide.none),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -176,13 +178,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: address.isDefault
-                        ? AppColors.primary.withAlpha(30)
-                        : Colors.grey.shade100,
+                        ? AppColors.primary.withAlpha(isDark ? 40 : 30)
+                        : (isDark
+                            ? const Color(0xFF2A2A2A)
+                            : Colors.grey.shade100),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Icon(
                     Icons.location_on,
-                    color: address.isDefault ? AppColors.primary : AppColors.textSecondary,
+                    color: address.isDefault
+                        ? AppColors.primary
+                        : (isDark
+                            ? const Color(0xFFAAAAAA)
+                            : AppColors.textSecondary),
                     size: 20,
                   ),
                 ),
@@ -193,10 +201,10 @@ class _AddressListScreenState extends State<AddressListScreen> {
                       Flexible(
                         child: Text(
                           address.title,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textPrimary,
+                            color: isDark ? Colors.white : AppColors.textPrimary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -204,15 +212,18 @@ class _AddressListScreenState extends State<AddressListScreen> {
                       if (address.isDefault) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withAlpha(25),
+                            color: AppColors.primary.withAlpha(isDark ? 35 : 25),
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Text(
+                          child: Text(
                             'Predeterminada',
                             style: TextStyle(
-                              color: AppColors.primaryDark,
+                              color: isDark
+                                  ? Colors.lightBlueAccent
+                                  : AppColors.primaryDark,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
@@ -223,14 +234,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
                   ),
                 ),
                 PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, color: AppColors.textSecondary),
+                  icon: Icon(Icons.more_vert,
+                      color: isDark
+                          ? const Color(0xFFAAAAAA)
+                          : AppColors.textSecondary),
                   onSelected: (val) async {
                     if (val == 'edit') {
                       AddEditAddressModal.show(context, address: address);
                     } else if (val == 'delete') {
                       _confirmDelete(context, address);
                     } else if (val == 'default') {
-                      await context.read<AddressProvider>().setDefaultAddress(address.id);
+                      await context
+                          .read<AddressProvider>()
+                          .setDefaultAddress(address.id);
                     }
                   },
                   itemBuilder: (ctx) => [
@@ -239,7 +255,8 @@ class _AddressListScreenState extends State<AddressListScreen> {
                         value: 'default',
                         child: Row(
                           children: [
-                            Icon(Icons.check_circle_outline, size: 18, color: AppColors.primary),
+                            Icon(Icons.check_circle_outline,
+                                size: 18, color: AppColors.primary),
                             SizedBox(width: 8),
                             Text('Hacer predeterminada'),
                           ],
@@ -259,9 +276,11 @@ class _AddressListScreenState extends State<AddressListScreen> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                          Icon(Icons.delete_outline,
+                              size: 18, color: AppColors.error),
                           SizedBox(width: 8),
-                          Text('Eliminar', style: TextStyle(color: AppColors.error)),
+                          Text('Eliminar',
+                              style: TextStyle(color: AppColors.error)),
                         ],
                       ),
                     ),
@@ -273,14 +292,18 @@ class _AddressListScreenState extends State<AddressListScreen> {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.signpost_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(Icons.signpost_outlined,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFFAAAAAA)
+                        : AppColors.textSecondary),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     address.street,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 14,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -290,13 +313,19 @@ class _AddressListScreenState extends State<AddressListScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                const Icon(Icons.location_city_outlined, size: 16, color: AppColors.textSecondary),
+                Icon(Icons.location_city_outlined,
+                    size: 16,
+                    color: isDark
+                        ? const Color(0xFFAAAAAA)
+                        : AppColors.textSecondary),
                 const SizedBox(width: 6),
                 Text(
                   '${address.city}${address.stateOrProvince.isNotEmpty ? ", ${address.stateOrProvince}" : ""}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: AppColors.textSecondary,
+                    color: isDark
+                        ? const Color(0xFFAAAAAA)
+                        : AppColors.textSecondary,
                   ),
                 ),
               ],

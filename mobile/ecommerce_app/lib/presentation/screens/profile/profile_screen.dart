@@ -130,6 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final authProvider = context.watch<AuthProvider>();
     final orderProvider = context.watch<OrderProvider>();
     final user = authProvider.currentUser;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     // Cálculo del total gastado acumulado a partir de las órdenes confirmadas/no canceladas
     final confirmedOrders = orderProvider.orders.where((o) {
@@ -147,14 +148,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final customerId = user?.customerId;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Mi Perfil'),
         elevation: 0,
         actions: [
+          IconButton(
+            tooltip: 'Configuración',
+            splashRadius: 22,
+            icon: Icon(
+              Icons.settings_outlined,
+              size: 22,
+              color: isDark ? Colors.white : AppColors.textPrimary,
+            ),
+            onPressed: () => Navigator.pushNamed(context, AppRoutes.settings),
+          ),
           if (authProvider.isAuthenticated)
             Padding(
-              padding: const EdgeInsets.only(right: 12),
+              padding: const EdgeInsets.only(left: 4, right: 12),
               child: Center(
                 child: IconButton(
                   tooltip: 'Cerrar Sesión',
@@ -177,6 +188,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             ),
+          if (!authProvider.isAuthenticated)
+            const SizedBox(width: 8),
         ],
       ),
       body: SafeArea(
@@ -192,21 +205,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 if (!authProvider.isAuthenticated) ...[
                   // Cabecera estilizada de usuario invitado
-                  _buildGuestCard(),
+                  _buildGuestCard(context),
                   const SizedBox(height: 20),
 
-                  const Text(
+                  Text(
                     'Actividad y Opciones',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 10),
 
                   // Mis Pedidos (con redirección al login)
                   _buildActionTile(
+                    context: context,
                     icon: Icons.receipt_long_outlined,
                     iconColor: AppColors.primary,
                     title: 'Mis Pedidos',
@@ -218,6 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Mis Direcciones (con redirección al login)
                   _buildActionTile(
+                    context: context,
                     icon: Icons.location_on_outlined,
                     iconColor: AppColors.primary,
                     title: 'Mis Direcciones',
@@ -229,6 +244,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Mis Métodos de Pago (con redirección al login)
                   _buildActionTile(
+                    context: context,
                     icon: Icons.credit_card,
                     iconColor: AppColors.primary,
                     title: 'Mis Métodos de Pago',
@@ -239,6 +255,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ] else ...[
                   // 1. Tarjeta de Usuario (Avatar + Nombre + Correo)
                   _buildUserCard(
+                    context,
                     name: name,
                     email: email,
                     customerId: customerId,
@@ -255,18 +272,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   const SizedBox(height: 20),
 
                   // 3. Accesos y Opciones
-                  const Text(
+                  Text(
                     'Actividad y Opciones',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 10),
 
                   // Acceso directo a Mis Pedidos
                   _buildActionTile(
+                    context: context,
                     icon: Icons.receipt_long_outlined,
                     iconColor: AppColors.primary,
                     title: 'Mis Pedidos',
@@ -279,6 +297,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Acceso directo a Mis Direcciones
                   _buildActionTile(
+                    context: context,
                     icon: Icons.location_on_outlined,
                     iconColor: AppColors.primary,
                     title: 'Mis Direcciones',
@@ -290,6 +309,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                   // Acceso directo a Mis Métodos de Pago
                   _buildActionTile(
+                    context: context,
                     icon: Icons.credit_card,
                     iconColor: AppColors.primary,
                     title: 'Mis Métodos de Pago',
@@ -307,7 +327,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildGuestCard() {
+  Widget _buildGuestCard(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -319,7 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               children: [
                 CircleAvatar(
                   radius: 34,
-                  backgroundColor: AppColors.primary.withAlpha(20),
+                  backgroundColor: AppColors.primary.withAlpha(isDark ? 35 : 20),
                   child: const Icon(
                     Icons.person_outline_rounded,
                     size: 38,
@@ -327,7 +348,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(width: 16),
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -336,15 +357,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Explora el catálogo y accede a tu cuenta para comprar.',
                         style: TextStyle(
                           fontSize: 13,
-                          color: AppColors.textSecondary,
+                          color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
                         ),
                       ),
                     ],
@@ -382,11 +403,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildUserCard({
+  Widget _buildUserCard(
+    BuildContext context, {
     required String name,
     required String email,
     required int? customerId,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 1,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -413,27 +436,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   Text(
                     name,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
+                      color: isDark ? Colors.white : AppColors.textPrimary,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.email_outlined,
                         size: 15,
-                        color: AppColors.textSecondary,
+                        color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
                           email,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 13,
-                            color: AppColors.textSecondary,
+                            color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -448,15 +471,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(20),
+                        color: AppColors.primary.withAlpha(isDark ? 35 : 20),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         'Cliente ID: #$customerId',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark,
+                          color: isDark ? Colors.lightBlueAccent : AppColors.primaryDark,
                         ),
                       ),
                     ),
@@ -590,6 +613,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildActionTile({
+    required BuildContext context,
     required IconData icon,
     required Color iconColor,
     required String title,
@@ -597,6 +621,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
     Color? titleColor,
   }) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Card(
       elevation: 0.5,
       margin: EdgeInsets.zero,
@@ -608,7 +633,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           width: 38,
           height: 38,
           decoration: BoxDecoration(
-            color: iconColor.withAlpha(20),
+            color: iconColor.withAlpha(isDark ? 35 : 20),
             borderRadius: BorderRadius.circular(10),
           ),
           alignment: Alignment.center,
@@ -619,20 +644,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: titleColor ?? AppColors.textPrimary,
+            color: titleColor ?? (isDark ? Colors.white : AppColors.textPrimary),
           ),
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 11.5,
-            color: AppColors.textSecondary,
+            color: isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
           ),
         ),
         trailing: Icon(
           Icons.chevron_right_rounded,
           size: 20,
-          color: titleColor ?? Colors.grey.shade400,
+          color: titleColor ?? (isDark ? Colors.white54 : Colors.grey.shade400),
         ),
         onTap: onTap,
       ),

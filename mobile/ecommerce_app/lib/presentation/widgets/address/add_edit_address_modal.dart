@@ -11,10 +11,16 @@ class AddEditAddressModal extends StatefulWidget {
   const AddEditAddressModal({super.key, this.address});
 
   static Future<AddressModel?> show(BuildContext context, {AddressModel? address}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return showModalBottomSheet<AddressModel>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: isDark
+          ? const Color(0xFF1E1E1E)
+          : Theme.of(context).colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (_) => AddEditAddressModal(address: address),
     );
   }
@@ -204,10 +210,52 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final surfaceColor = isDark
+        ? const Color(0xFF1E1E1E)
+        : Theme.of(context).colorScheme.surface;
+    final fieldFillColor = isDark ? const Color(0xFF2A2A2A) : AppColors.background;
+    final fieldBorderColor = isDark ? const Color(0xFF3A3A3A) : Colors.grey.shade300;
+    final textColor = isDark ? Colors.white : AppColors.textPrimary;
+    final labelColor = isDark ? Colors.grey.shade400 : AppColors.textSecondary;
+    final iconColor = isDark ? Colors.grey.shade400 : AppColors.textSecondary;
+
+    InputDecoration buildInputDecoration({
+      required String labelText,
+      required String hintText,
+      IconData? prefixIcon,
+    }) {
+      return InputDecoration(
+        labelText: labelText,
+        labelStyle: TextStyle(color: labelColor),
+        hintText: hintText,
+        hintStyle: TextStyle(
+          color: isDark ? Colors.grey.shade600 : Colors.grey.shade400,
+        ),
+        prefixIcon: prefixIcon != null
+            ? Icon(prefixIcon, color: iconColor, size: 20)
+            : null,
+        filled: true,
+        fillColor: fieldFillColor,
+        counterText: '',
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: fieldBorderColor),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: fieldBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+      );
+    }
 
     return Material(
-      color: Colors.white,
+      color: surfaceColor,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       clipBehavior: Clip.antiAlias,
       child: Padding(
@@ -241,16 +289,19 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                       const SizedBox(width: 10),
                       Text(
                         _isEditing ? 'Editar Dirección' : 'Nueva Dirección de Entrega',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: textColor,
                         ),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close),
+                    icon: Icon(
+                      Icons.close,
+                      color: isDark ? Colors.white70 : Colors.black54,
+                    ),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -262,18 +313,15 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                 controller: _titleController,
                 textCapitalization: TextCapitalization.words,
                 maxLength: 25,
+                style: TextStyle(color: textColor),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ ]')),
                   _titleCaseFormatter,
                 ],
-                decoration: InputDecoration(
+                decoration: buildInputDecoration(
                   labelText: 'Nombre o Alias de la Dirección *',
                   hintText: 'Ej. Casa, Oficina, Departamento Mamá',
-                  prefixIcon: const Icon(Icons.bookmark_outline, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  counterText: '',
+                  prefixIcon: Icons.bookmark_outline,
                 ),
                 validator: (val) {
                   final text = val?.trim() ?? '';
@@ -293,6 +341,7 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                 controller: _streetController,
                 textCapitalization: TextCapitalization.words,
                 maxLength: 60,
+                style: TextStyle(color: textColor),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ .#\-/]')),
                   TextInputFormatter.withFunction((oldValue, newValue) {
@@ -305,14 +354,10 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                   }),
                   _titleCaseFormatter,
                 ],
-                decoration: InputDecoration(
+                decoration: buildInputDecoration(
                   labelText: 'Calle Principal y Número / Intersección *',
                   hintText: 'Ej. Av. Amazonas N24-196 y Colón',
-                  prefixIcon: const Icon(Icons.signpost_outlined, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  counterText: '',
+                  prefixIcon: Icons.signpost_outlined,
                 ),
                 validator: (val) {
                   final rawText = val ?? '';
@@ -350,18 +395,15 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                       controller: _cityController,
                       textCapitalization: TextCapitalization.words,
                       maxLength: 30,
+                      style: TextStyle(color: textColor),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ ]')),
                         _titleCaseFormatter,
                       ],
-                      decoration: InputDecoration(
+                      decoration: buildInputDecoration(
                         labelText: 'Ciudad *',
                         hintText: 'Ej. Quito',
-                        prefixIcon: const Icon(Icons.location_city_outlined, size: 20),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        counterText: '',
+                        prefixIcon: Icons.location_city_outlined,
                       ),
                       validator: (val) {
                         final text = val?.trim() ?? '';
@@ -382,17 +424,14 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                       controller: _stateController,
                       textCapitalization: TextCapitalization.words,
                       maxLength: 30,
+                      style: TextStyle(color: textColor),
                       inputFormatters: [
                         FilteringTextInputFormatter.allow(RegExp(r'[a-zA-ZáéíóúÁÉÍÓÚñÑ ]')),
                         _titleCaseFormatter,
                       ],
-                      decoration: InputDecoration(
+                      decoration: buildInputDecoration(
                         labelText: 'Provincia',
                         hintText: 'Ej. Pichincha',
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                        filled: true,
-                        fillColor: AppColors.background,
-                        counterText: '',
                       ),
                     ),
                   ),
@@ -405,18 +444,15 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                 controller: _phoneController,
                 keyboardType: TextInputType.phone,
                 maxLength: 10,
+                style: TextStyle(color: textColor),
                 inputFormatters: [
                   FilteringTextInputFormatter.digitsOnly,
                   LengthLimitingTextInputFormatter(10),
                 ],
-                decoration: InputDecoration(
+                decoration: buildInputDecoration(
                   labelText: 'Teléfono para el Repartidor *',
                   hintText: 'Ej. 0991234567',
-                  prefixIcon: const Icon(Icons.phone_outlined, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  counterText: '',
+                  prefixIcon: Icons.phone_outlined,
                 ),
                 validator: (val) {
                   final text = val?.trim() ?? '';
@@ -437,18 +473,15 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                 textCapitalization: TextCapitalization.words,
                 maxLines: 2,
                 maxLength: 80,
+                style: TextStyle(color: textColor),
                 inputFormatters: [
                   FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ .,\-]')),
                   _titleCaseFormatter,
                 ],
-                decoration: InputDecoration(
+                decoration: buildInputDecoration(
                   labelText: 'Referencias de Entrega (Opcional)',
                   hintText: 'Ej. Frente a la farmacia, casa blanca de rejas negras, timbre #3',
-                  prefixIcon: const Icon(Icons.notes_outlined, size: 20),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                  filled: true,
-                  fillColor: AppColors.background,
-                  counterText: '',
+                  prefixIcon: Icons.notes_outlined,
                 ),
               ),
               const SizedBox(height: 8),
@@ -458,13 +491,20 @@ class _AddEditAddressModalState extends State<AddEditAddressModal> {
                 contentPadding: EdgeInsets.zero,
                 value: _isDefault,
                 onChanged: (val) => setState(() => _isDefault = val),
-                title: const Text(
+                title: Text(
                   'Usar como dirección predeterminada',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: textColor,
+                  ),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   'Se seleccionará automáticamente en tus próximas compras',
-                  style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: isDark ? const Color(0xFFB0B0B0) : AppColors.textSecondary,
+                  ),
                 ),
                 activeColor: AppColors.primary,
               ),

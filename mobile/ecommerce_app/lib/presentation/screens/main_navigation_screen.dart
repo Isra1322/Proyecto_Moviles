@@ -32,6 +32,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
       body: IndexedStack(
         index: _currentIndex,
@@ -52,7 +54,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         decoration: BoxDecoration(
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withAlpha(15),
+              color: Colors.black.withAlpha(isDark ? 30 : 15),
               blurRadius: 8,
               offset: const Offset(0, -2),
             ),
@@ -62,9 +64,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           currentIndex: _currentIndex,
           onTap: _onTabSelected,
           type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.white,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textSecondary,
+          backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
+          selectedItemColor:
+              isDark ? const Color(0xFF2196F3) : AppColors.primary,
+          unselectedItemColor:
+              isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
           selectedFontSize: 12,
           unselectedFontSize: 12,
           elevation: 0,

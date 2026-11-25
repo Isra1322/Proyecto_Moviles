@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:ecommerce_app/core/constants/app_colors.dart';
+import 'package:ecommerce_app/core/services/invoice_pdf_service.dart';
 import 'package:ecommerce_app/core/utils/currency_formatter.dart';
 import 'package:ecommerce_app/core/utils/date_formatter.dart';
 import 'package:ecommerce_app/domain/entities/order.dart';
@@ -230,12 +231,12 @@ class _OrderCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Total:',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
                   Row(
                     children: [
+                      const Text(
+                        'Total: ',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                       Text(
                         CurrencyFormatter.format(order.totalAmount),
                         style: const TextStyle(
@@ -244,7 +245,24 @@ class _OrderCard extends StatelessWidget {
                           color: AppColors.primary,
                         ),
                       ),
-                      const SizedBox(width: 6),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      IconButton(
+                        icon: const Icon(
+                          Icons.picture_as_pdf_outlined,
+                          size: 22,
+                          color: Color(0xFFE53935),
+                        ),
+                        tooltip: 'Descargar Factura PDF',
+                        onPressed: () =>
+                            InvoicePdfService.generateAndDownloadInvoice(
+                          context,
+                          order,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
                       const Icon(
                         Icons.chevron_right,
                         size: 20,

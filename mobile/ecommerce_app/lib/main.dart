@@ -6,6 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 // Core
 import 'core/constants/api_constants.dart';
+import 'core/theme/app_theme.dart';
 
 // Infrastructure
 import 'infrastructure/http/api_client.dart';
@@ -51,6 +52,7 @@ import 'presentation/providers/cart_provider.dart';
 import 'presentation/providers/order_provider.dart';
 import 'presentation/providers/payment_provider.dart';
 import 'presentation/providers/address_provider.dart';
+import 'presentation/providers/theme_provider.dart';
 
 // Rutas
 import 'presentation/routes/app_routes.dart';
@@ -126,11 +128,15 @@ void main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(
+          create: (_) => ThemeProvider(prefs),
+        ),
+        ChangeNotifierProvider(
           create: (_) => AuthProvider(
             loginUseCase,
             registerUseCase,
             getSavedUserUseCase,
             logoutUseCase,
+            authLocalDataSource,
           )..checkSavedSession(),
         ),
         ChangeNotifierProvider(
@@ -173,13 +179,14 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+
     return MaterialApp(
       title: 'E-Commerce Odoo',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
+      themeMode: themeProvider.themeMode,
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
       initialRoute: AppRoutes.catalog,
       onGenerateRoute: AppRoutes.onGenerateRoute,
       routes: AppRoutes.routes,

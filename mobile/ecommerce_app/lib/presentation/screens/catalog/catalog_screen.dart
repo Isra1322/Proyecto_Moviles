@@ -69,10 +69,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
     if (currentMin > currentMax) currentMin = minBound;
 
     RangeValues selectedRange = RangeValues(currentMin, currentMax);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -93,16 +95,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Filtrar por Rango de Precios',
                         style: TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textPrimary,
+                          color: isDark ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.close),
+                        icon: Icon(Icons.close,
+                            color: isDark ? Colors.white70 : Colors.black54),
                         onPressed: () => Navigator.pop(ctx),
                       ),
                     ],
@@ -113,16 +116,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     children: [
                       Text(
                         'Mínimo: ${CurrencyFormatter.format(selectedRange.start)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark,
+                          color: isDark
+                              ? Colors.lightBlueAccent
+                              : AppColors.primaryDark,
                         ),
                       ),
                       Text(
                         'Máximo: ${CurrencyFormatter.format(selectedRange.end)}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.primaryDark,
+                          color: isDark
+                              ? Colors.lightBlueAccent
+                              : AppColors.primaryDark,
                         ),
                       ),
                     ],
@@ -136,7 +143,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         ? (maxBound - minBound).round().clamp(5, 100)
                         : 1,
                     activeColor: AppColors.primary,
-                    inactiveColor: AppColors.border,
+                    inactiveColor:
+                        isDark ? const Color(0xFF333333) : AppColors.border,
                     labels: RangeLabels(
                       CurrencyFormatter.format(selectedRange.start),
                       CurrencyFormatter.format(selectedRange.end),
@@ -188,8 +196,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
   }
 
   void _showSortSheet(BuildContext context, ProductProvider provider) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showModalBottomSheet(
       context: context,
+      backgroundColor: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -200,18 +210,19 @@ class _CatalogScreenState extends State<CatalogScreen> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Text(
                   'Ordenar Productos Por',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
+                    color: isDark ? Colors.white : AppColors.textPrimary,
                   ),
                 ),
               ),
-              const Divider(),
+              Divider(color: isDark ? Colors.white12 : Colors.grey.shade200),
               _buildSortTile(
                 ctx,
                 provider,
@@ -262,17 +273,22 @@ class _CatalogScreenState extends State<CatalogScreen> {
     required IconData icon,
   }) {
     final isSelected = provider.sortOption == option;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return ListTile(
       leading: Icon(
         icon,
-        color: isSelected ? AppColors.primary : AppColors.textSecondary,
+        color: isSelected
+            ? AppColors.primary
+            : (isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary),
       ),
       title: Text(
         title,
         style: TextStyle(
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? AppColors.primary : AppColors.textPrimary,
+          color: isSelected
+              ? AppColors.primary
+              : (isDark ? Colors.white : AppColors.textPrimary),
         ),
       ),
       trailing: isSelected
@@ -288,22 +304,22 @@ class _CatalogScreenState extends State<CatalogScreen> {
   @override
   Widget build(BuildContext context) {
     final productProvider = context.watch<ProductProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: AppColors.background,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Descubre Productos',
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
-                color: AppColors.textPrimary,
+                color: isDark ? Colors.white : AppColors.textPrimary,
                 letterSpacing: -0.5,
               ),
             ),
@@ -311,10 +327,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
               productProvider.selectedCategoryId != null
                   ? 'Filtrado por categoría'
                   : 'Encuentra las mejores ofertas para ti',
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.normal,
-                color: AppColors.textSecondary,
+                color:
+                    isDark ? const Color(0xFFAAAAAA) : AppColors.textSecondary,
               ),
             ),
           ],
@@ -336,24 +353,33 @@ class _CatalogScreenState extends State<CatalogScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
               child: Container(
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withAlpha(8),
+                      color: Colors.black.withAlpha(isDark ? 25 : 8),
                       blurRadius: 10,
                       offset: const Offset(0, 3),
                     ),
                   ],
-                  border: Border.all(color: Colors.grey.shade200),
+                  border: Border.all(
+                    color:
+                        isDark ? const Color(0xFF333333) : Colors.grey.shade200,
+                  ),
                 ),
                 child: TextField(
                   controller: _searchController,
                   onChanged: (value) => productProvider.setSearchQuery(value),
+                  style: TextStyle(
+                    color: isDark ? Colors.white : AppColors.textPrimary,
+                    fontSize: 14,
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Buscar por nombre o descripción...',
-                    hintStyle: const TextStyle(
-                      color: AppColors.textSecondary,
+                    hintStyle: TextStyle(
+                      color: isDark
+                          ? const Color(0xFF757575)
+                          : AppColors.textSecondary,
                       fontSize: 14,
                     ),
                     prefixIcon: const Icon(
@@ -363,7 +389,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ),
                     suffixIcon: _searchController.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear, size: 20),
+                            icon: Icon(
+                              Icons.clear,
+                              size: 20,
+                              color: isDark
+                                  ? Colors.white70
+                                  : Colors.grey.shade600,
+                            ),
                             onPressed: () {
                               _searchController.clear();
                               productProvider.clearSearch();
@@ -392,12 +424,16 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       child: OutlinedButton.icon(
                         style: OutlinedButton.styleFrom(
                           backgroundColor: productProvider.hasPriceFilter
-                              ? AppColors.primary.withAlpha(20)
-                              : Colors.white,
+                              ? AppColors.primary.withAlpha(isDark ? 35 : 20)
+                              : (isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white),
                           side: BorderSide(
                             color: productProvider.hasPriceFilter
                                 ? AppColors.primary
-                                : Colors.grey.shade300,
+                                : (isDark
+                                    ? const Color(0xFF333333)
+                                    : Colors.grey.shade300),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -409,8 +445,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           Icons.tune,
                           size: 18,
                           color: productProvider.hasPriceFilter
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
+                              ? (isDark
+                                  ? Colors.lightBlueAccent
+                                  : AppColors.primary)
+                              : (isDark
+                                  ? Colors.white70
+                                  : AppColors.textPrimary),
                         ),
                         label: Text(
                           productProvider.hasPriceFilter
@@ -420,8 +460,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: productProvider.hasPriceFilter
-                                ? AppColors.primaryDark
-                                : AppColors.textPrimary,
+                                ? (isDark
+                                    ? Colors.lightBlueAccent
+                                    : AppColors.primaryDark)
+                                : (isDark
+                                    ? Colors.white
+                                    : AppColors.textPrimary),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -438,13 +482,17 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         style: OutlinedButton.styleFrom(
                           backgroundColor: productProvider.sortOption !=
                                   ProductSortOption.none
-                              ? AppColors.primary.withAlpha(20)
-                              : Colors.white,
+                              ? AppColors.primary.withAlpha(isDark ? 35 : 20)
+                              : (isDark
+                                  ? const Color(0xFF1E1E1E)
+                                  : Colors.white),
                           side: BorderSide(
                             color: productProvider.sortOption !=
                                     ProductSortOption.none
                                 ? AppColors.primary
-                                : Colors.grey.shade300,
+                                : (isDark
+                                    ? const Color(0xFF333333)
+                                    : Colors.grey.shade300),
                           ),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
@@ -457,8 +505,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
                           size: 18,
                           color: productProvider.sortOption !=
                                   ProductSortOption.none
-                              ? AppColors.primary
-                              : AppColors.textPrimary,
+                              ? (isDark
+                                  ? Colors.lightBlueAccent
+                                  : AppColors.primary)
+                              : (isDark
+                                  ? Colors.white70
+                                  : AppColors.textPrimary),
                         ),
                         label: Text(
                           _getSortLabel(productProvider.sortOption),
@@ -467,8 +519,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
                             fontWeight: FontWeight.w600,
                             color: productProvider.sortOption !=
                                     ProductSortOption.none
-                                ? AppColors.primaryDark
-                                : AppColors.textPrimary,
+                                ? (isDark
+                                    ? Colors.lightBlueAccent
+                                    : AppColors.primaryDark)
+                                : (isDark
+                                    ? Colors.white
+                                    : AppColors.textPrimary),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -692,7 +748,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
       padding: const EdgeInsets.all(16),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.70,
+        childAspectRatio: 0.67,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
